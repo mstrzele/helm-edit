@@ -1,0 +1,9 @@
+package: github.com/mstrzele/helm-edit
+import:
+- package: github.com/spf13/cobra
+- package: k8s.io/helm
+  version: ~2.5.1
+  subpackages:
+  - pkg/chartutil
+  - pkg/helm
+  - pkg/helm/environment
