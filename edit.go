@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -94,7 +95,9 @@ func (e *editCmd) run() error {
 		return err
 	}
 
-	cmd := exec.Command(e.editor, tmpfile.Name())
+	editor := strings.Split(e.editor, " ")
+
+	cmd := exec.Command(editor[0], append(editor[1:], tmpfile.Name())...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = e.out
 	cmd.Stderr = e.out
