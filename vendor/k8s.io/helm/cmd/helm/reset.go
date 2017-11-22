@@ -32,7 +32,7 @@ import (
 )
 
 const resetDesc = `
-This command uninstalls Tiller (the helm server side component) from your
+This command uninstalls Tiller (the Helm server-side component) from your
 Kubernetes Cluster and optionally deletes local configuration in
 $HELM_HOME (default ~/.helm/)
 `
@@ -77,7 +77,7 @@ func newResetCmd(client helm.Interface, out io.Writer) *cobra.Command {
 	}
 
 	f := cmd.Flags()
-	f.BoolVarP(&d.force, "force", "f", false, "forces Tiller uninstall even if there are releases installed, or if tiller is not in ready state")
+	f.BoolVarP(&d.force, "force", "f", false, "forces Tiller uninstall even if there are releases installed, or if Tiller is not in ready state")
 	f.BoolVar(&d.removeHelmHome, "remove-helm-home", false, "if set deletes $HELM_HOME")
 
 	return cmd
@@ -86,7 +86,7 @@ func newResetCmd(client helm.Interface, out io.Writer) *cobra.Command {
 // runReset uninstalls tiller from Kubernetes Cluster and deletes local config
 func (d *resetCmd) run() error {
 	if d.kubeClient == nil {
-		_, c, err := getInternalKubeClient(settings.KubeContext)
+		c, err := getInternalKubeClient(settings.KubeContext)
 		if err != nil {
 			return fmt.Errorf("could not get kubernetes client: %s", err)
 		}
@@ -114,7 +114,7 @@ func (d *resetCmd) run() error {
 		}
 	}
 
-	fmt.Fprintln(d.out, "Tiller (the helm server side component) has been uninstalled from your Kubernetes Cluster.")
+	fmt.Fprintln(d.out, "Tiller (the Helm server-side component) has been uninstalled from your Kubernetes Cluster.")
 	return nil
 }
 

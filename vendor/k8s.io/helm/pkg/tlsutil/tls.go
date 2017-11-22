@@ -29,14 +29,17 @@ func NewClientTLS(certFile, keyFile, caFile string) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cp, err := CertPoolFromFile(caFile)
-	if err != nil {
-		return nil, err
-	}
-	return &tls.Config{
+	config := tls.Config{
 		Certificates: []tls.Certificate{*cert},
-		RootCAs:      cp,
-	}, nil
+	}
+	if caFile != "" {
+		cp, err := CertPoolFromFile(caFile)
+		if err != nil {
+			return nil, err
+		}
+		config.RootCAs = cp
+	}
+	return &config, nil
 }
 
 // CertPoolFromFile returns an x509.CertPool containing the certificates
@@ -62,7 +65,7 @@ func CertPoolFromFile(filename string) (*x509.CertPool, error) {
 func CertFromFilePair(certFile, keyFile string) (*tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("can't load key pair from cert %s and key %s", certFile, keyFile)
+		return nil, fmt.Errorf("can't load key pair from cert %s and key %s: %s", certFile, keyFile, err)
 	}
 	return &cert, err
 }

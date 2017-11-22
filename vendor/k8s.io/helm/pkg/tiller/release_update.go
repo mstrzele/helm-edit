@@ -30,10 +30,21 @@ import (
 
 // UpdateRelease takes an existing release and new information, and upgrades the release.
 func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateReleaseRequest) (*services.UpdateReleaseResponse, error) {
+	if err := validateReleaseName(req.Name); err != nil {
+		s.Log("updateRelease: Release name is invalid: %s", req.Name)
+		return nil, err
+	}
 	s.Log("preparing update for %s", req.Name)
 	currentRelease, updatedRelease, err := s.prepareUpdate(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if !req.DryRun {
+		s.Log("creating updated release for %s", req.Name)
+		if err := s.env.Releases.Create(updatedRelease); err != nil {
+			return nil, err
+		}
 	}
 
 	s.Log("performing update for %s", req.Name)
@@ -43,8 +54,8 @@ func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateRelease
 	}
 
 	if !req.DryRun {
-		s.Log("creating updated release for %s", req.Name)
-		if err := s.env.Releases.Create(updatedRelease); err != nil {
+		s.Log("updating status for updated release for %s", req.Name)
+		if err := s.env.Releases.Update(updatedRelease); err != nil {
 			return res, err
 		}
 	}
@@ -54,16 +65,12 @@ func (s *ReleaseServer) UpdateRelease(c ctx.Context, req *services.UpdateRelease
 
 // prepareUpdate builds an updated release for an update operation.
 func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*release.Release, *release.Release, error) {
-	if !ValidName.MatchString(req.Name) {
-		return nil, nil, errMissingRelease
-	}
-
 	if req.Chart == nil {
 		return nil, nil, errMissingChart
 	}
 
-	// finds the non-deleted release with the given name
-	currentRelease, err := s.env.Releases.Last(req.Name)
+	// finds the deployed release with the given name
+	currentRelease, err := s.env.Releases.Deployed(req.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -73,9 +80,15 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 		return nil, nil, err
 	}
 
+	// finds the non-deleted release with the given name
+	lastRelease, err := s.env.Releases.Last(req.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Increment revision count. This is passed to templates, and also stored on
 	// the release object.
-	revision := currentRelease.Version + 1
+	revision := lastRelease.Version + 1
 
 	ts := timeconv.Now()
 	options := chartutil.ReleaseOptions{
@@ -109,7 +122,7 @@ func (s *ReleaseServer) prepareUpdate(req *services.UpdateReleaseRequest) (*rele
 		Info: &release.Info{
 			FirstDeployed: currentRelease.Info.FirstDeployed,
 			LastDeployed:  ts,
-			Status:        &release.Status{Code: release.Status_UNKNOWN},
+			Status:        &release.Status{Code: release.Status_PENDING_UPGRADE},
 			Description:   "Preparing upgrade", // This should be overwritten later.
 		},
 		Version:  revision,
@@ -144,11 +157,10 @@ func (s *ReleaseServer) performUpdate(originalRelease, updatedRelease *release.R
 	if err := s.ReleaseModule.Update(originalRelease, updatedRelease, req, s.env); err != nil {
 		msg := fmt.Sprintf("Upgrade %q failed: %s", updatedRelease.Name, err)
 		s.Log("warning: %s", msg)
-		originalRelease.Info.Status.Code = release.Status_SUPERSEDED
 		updatedRelease.Info.Status.Code = release.Status_FAILED
 		updatedRelease.Info.Description = msg
 		s.recordRelease(originalRelease, true)
-		s.recordRelease(updatedRelease, false)
+		s.recordRelease(updatedRelease, true)
 		return res, err
 	}
 
