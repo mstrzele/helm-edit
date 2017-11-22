@@ -17,20 +17,23 @@ limitations under the License.
 package installer // import "k8s.io/helm/cmd/helm/installer"
 
 import (
+	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/ghodss/yaml"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	extensionsclient "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/helm/pkg/chartutil"
 )
 
-// Install uses kubernetes client to install tiller.
+// Install uses Kubernetes client to install Tiller.
 //
 // Returns an error if the command failed.
 func Install(client kubernetes.Interface, opts *Options) error {
@@ -48,7 +51,7 @@ func Install(client kubernetes.Interface, opts *Options) error {
 	return nil
 }
 
-// Upgrade uses kubernetes client to upgrade tiller to current version.
+// Upgrade uses Kubernetes client to upgrade Tiller to current version.
 //
 // Returns an error if the command failed.
 func Upgrade(client kubernetes.Interface, opts *Options) error {
@@ -62,7 +65,7 @@ func Upgrade(client kubernetes.Interface, opts *Options) error {
 	if _, err := client.Extensions().Deployments(opts.Namespace).Update(obj); err != nil {
 		return err
 	}
-	// If the service does not exists that would mean we are upgrading from a tiller version
+	// If the service does not exists that would mean we are upgrading from a Tiller version
 	// that didn't deploy the service, so install it.
 	_, err = client.Core().Services(opts.Namespace).Get(serviceName, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
@@ -71,15 +74,19 @@ func Upgrade(client kubernetes.Interface, opts *Options) error {
 	return err
 }
 
-// createDeployment creates the Tiller deployment reource
+// createDeployment creates the Tiller Deployment resource.
 func createDeployment(client extensionsclient.DeploymentsGetter, opts *Options) error {
-	obj := deployment(opts)
-	_, err := client.Deployments(obj.Namespace).Create(obj)
+	obj, err := deployment(opts)
+	if err != nil {
+		return err
+	}
+	_, err = client.Deployments(obj.Namespace).Create(obj)
 	return err
+
 }
 
 // deployment gets the deployment object that installs Tiller.
-func deployment(opts *Options) *v1beta1.Deployment {
+func deployment(opts *Options) (*v1beta1.Deployment, error) {
 	return generateDeployment(opts)
 }
 
@@ -98,7 +105,10 @@ func service(namespace string) *v1.Service {
 // DeploymentManifest gets the manifest (as a string) that describes the Tiller Deployment
 // resource.
 func DeploymentManifest(opts *Options) (string, error) {
-	obj := deployment(opts)
+	obj, err := deployment(opts)
+	if err != nil {
+		return "", err
+	}
 	buf, err := yaml.Marshal(obj)
 	return string(buf), err
 }
@@ -116,8 +126,28 @@ func generateLabels(labels map[string]string) map[string]string {
 	return labels
 }
 
-func generateDeployment(opts *Options) *v1beta1.Deployment {
+// parseNodeSelectors parses a comma delimited list of key=values pairs into a map.
+func parseNodeSelectorsInto(labels string, m map[string]string) error {
+	kv := strings.Split(labels, ",")
+	for _, v := range kv {
+		el := strings.Split(v, "=")
+		if len(el) == 2 {
+			m[el[0]] = el[1]
+		} else {
+			return fmt.Errorf("invalid nodeSelector label: %q", kv)
+		}
+	}
+	return nil
+}
+func generateDeployment(opts *Options) (*v1beta1.Deployment, error) {
 	labels := generateLabels(map[string]string{"name": "tiller"})
+	nodeSelectors := map[string]string{}
+	if len(opts.NodeSelectors) > 0 {
+		err := parseNodeSelectorsInto(opts.NodeSelectors, nodeSelectors)
+		if err != nil {
+			return nil, err
+		}
+	}
 	d := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: opts.Namespace,
@@ -141,6 +171,7 @@ func generateDeployment(opts *Options) *v1beta1.Deployment {
 							},
 							Env: []v1.EnvVar{
 								{Name: "TILLER_NAMESPACE", Value: opts.Namespace},
+								{Name: "TILLER_HISTORY_MAX", Value: fmt.Sprintf("%d", opts.MaxHistory)},
 							},
 							LivenessProbe: &v1.Probe{
 								Handler: v1.Handler{
@@ -164,10 +195,8 @@ func generateDeployment(opts *Options) *v1beta1.Deployment {
 							},
 						},
 					},
-					HostNetwork: opts.EnableHostNetwork,
-					NodeSelector: map[string]string{
-						"beta.kubernetes.io/os": "linux",
-					},
+					HostNetwork:  opts.EnableHostNetwork,
+					NodeSelector: nodeSelectors,
 				},
 			},
 		},
@@ -203,7 +232,40 @@ func generateDeployment(opts *Options) *v1beta1.Deployment {
 			},
 		})
 	}
-	return d
+	// if --override values were specified, ultimately convert values and deployment to maps,
+	// merge them and convert back to Deployment
+	if len(opts.Values) > 0 {
+		// base deployment struct
+		var dd v1beta1.Deployment
+		// get YAML from original deployment
+		dy, err := yaml.Marshal(d)
+		if err != nil {
+			return nil, fmt.Errorf("Error marshalling base Tiller Deployment: %s", err)
+		}
+		// convert deployment YAML to values
+		dv, err := chartutil.ReadValues(dy)
+		if err != nil {
+			return nil, fmt.Errorf("Error converting Deployment manifest: %s ", err)
+		}
+		dm := dv.AsMap()
+		// merge --set values into our map
+		sm, err := opts.valuesMap(dm)
+		if err != nil {
+			return nil, fmt.Errorf("Error merging --set values into Deployment manifest")
+		}
+		finalY, err := yaml.Marshal(sm)
+		if err != nil {
+			return nil, fmt.Errorf("Error marshalling merged map to YAML: %s ", err)
+		}
+		// convert merged values back into deployment
+		err = yaml.Unmarshal(finalY, &dd)
+		if err != nil {
+			return nil, fmt.Errorf("Error unmarshalling Values to Deployment manifest: %s ", err)
+		}
+		d = &dd
+	}
+
+	return d, nil
 }
 
 func generateService(namespace string) *v1.Service {
@@ -251,7 +313,6 @@ func createSecret(client corev1.SecretsGetter, opts *Options) error {
 
 // generateSecret builds the secret object that hold Tiller secrets.
 func generateSecret(opts *Options) (*v1.Secret, error) {
-	const secretName = "tiller-secret"
 
 	labels := generateLabels(map[string]string{"name": "tiller"})
 	secret := &v1.Secret{
