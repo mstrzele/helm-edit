@@ -1,5 +1,3 @@
-:warning: **Until [kubernetes/helm#2740](https://github.com/kubernetes/helm/pull/2740) won't be merged, opening an editor using this plugin will mess up your terminal. Use `reset` command after `helm edit`.**
-
 # Helm Edit
 
 [![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
