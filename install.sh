@@ -11,7 +11,7 @@ url="https://github.com/mstrzele/helm-edit/releases/download/v${HELM_EDIT_VERSIO
 if command -v wget; then
   wget -O "${file}"  "${url}"
 elif command -v curl; then
-  curl -o "${file}" "${url}"
+  curl -o "${file}" -L "${url}"
 fi
 
 chmod +x "${file}"
