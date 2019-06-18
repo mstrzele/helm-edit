@@ -1,3 +1,4 @@
+---
 defaults: &defaults
   working_directory: /go/src/github.com/mstrzele/helm-edit
   docker:
@@ -8,10 +9,14 @@ jobs:
   lint:
     <<: *defaults
     steps:
-      - run:
-          name: Installing Glide
-          command: curl https://glide.sh/get | sh
       - checkout
+      - run: dep ensure
+
+      - persist_to_workspace:
+          root: vendor
+          paths:
+            - "*"
+
       - run: go install
       - run:
           name: Installing gometalinter
@@ -20,7 +25,7 @@ jobs:
             gometalinter --install
       - run:
           name: Running gometalinter
-          command: gometalinter --deadline=5m --errors $(glide novendor)
+          command: gometalinter --deadline=5m --errors
   build:
     <<: *defaults
     steps:
@@ -28,7 +33,13 @@ jobs:
           name: Installing Gox
           command: go get github.com/mitchellh/gox
       - checkout
-      - run: gox -osarch "darwin/amd64 linux/amd64" -output "dist/{{.Dir}}_{{.OS}}_{{.Arch}}"
+
+      - attach_workspace:
+          at: vendor
+
+      - run: >
+          gox -osarch "darwin/amd64 linux/amd64"
+          -output "dist/{{.Dir}}_{{.OS}}_{{.Arch}}"
 
       - persist_to_workspace:
           root: dist
@@ -48,7 +59,9 @@ jobs:
           at: dist
 
       - deploy:
-          command: ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace `git describe --tags` dist/
+          command: >
+            ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME
+            -r $CIRCLE_PROJECT_REPONAME --replace `git describe --tags` dist/
 
 workflows:
   version: 2
