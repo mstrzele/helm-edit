@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -20,21 +20,47 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"k8s.io/helm/pkg/tlsutil"
-	"k8s.io/helm/pkg/urlutil"
+	"k8s.io/helm/pkg/version"
 )
 
-//httpGetter is the efault HTTP(/S) backend handler
-type httpGetter struct {
-	client *http.Client
+//HttpGetter is the efault HTTP(/S) backend handler
+// TODO: change the name to HTTPGetter in Helm 3
+type HttpGetter struct { //nolint
+	client   *http.Client
+	username string
+	password string
+}
+
+//SetCredentials sets the credentials for the getter
+func (g *HttpGetter) SetCredentials(username, password string) {
+	g.username = username
+	g.password = password
 }
 
 //Get performs a Get from repo.Getter and returns the body.
-func (g *httpGetter) Get(href string) (*bytes.Buffer, error) {
+func (g *HttpGetter) Get(href string) (*bytes.Buffer, error) {
+	return g.get(href)
+}
+
+func (g *HttpGetter) get(href string) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 
-	resp, err := g.client.Get(href)
+	// Set a helm specific user agent so that a repo server and metrics can
+	// separate helm calls from other tools interacting with repos.
+	req, err := http.NewRequest("GET", href, nil)
+	if err != nil {
+		return buf, err
+	}
+	req.Header.Set("User-Agent", "Helm/"+strings.TrimPrefix(version.GetVersion(), "v"))
+
+	if g.username != "" && g.password != "" {
+		req.SetBasicAuth(g.username, g.password)
+	}
+
+	resp, err := g.client.Do(req)
 	if err != nil {
 		return buf, err
 	}
@@ -49,27 +75,23 @@ func (g *httpGetter) Get(href string) (*bytes.Buffer, error) {
 
 // newHTTPGetter constructs a valid http/https client as Getter
 func newHTTPGetter(URL, CertFile, KeyFile, CAFile string) (Getter, error) {
-	var client httpGetter
-	if CertFile != "" && KeyFile != "" {
-		tlsConf, err := tlsutil.NewClientTLS(CertFile, KeyFile, CAFile)
-		if err != nil {
-			return nil, fmt.Errorf("can't create TLS config for client: %s", err.Error())
-		}
-		tlsConf.BuildNameToCertificate()
+	return NewHTTPGetter(URL, CertFile, KeyFile, CAFile)
+}
 
-		sni, err := urlutil.ExtractHostname(URL)
-		if err != nil {
-			return nil, err
-		}
-		tlsConf.ServerName = sni
-
-		client.client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConf,
-			},
-		}
-	} else {
-		client.client = http.DefaultClient
+// NewHTTPGetter constructs a valid http/https client as HttpGetter
+func NewHTTPGetter(URL, CertFile, KeyFile, CAFile string) (*HttpGetter, error) {
+	var client HttpGetter
+	tr := &http.Transport{
+		DisableCompression: true,
+		Proxy:              http.ProxyFromEnvironment,
 	}
+	if (CertFile != "" && KeyFile != "") || CAFile != "" {
+		tlsConf, err := tlsutil.NewTLSConfig(URL, CertFile, KeyFile, CAFile)
+		if err != nil {
+			return &client, fmt.Errorf("can't create TLS config: %s", err.Error())
+		}
+		tr.TLSClientConfig = tlsConf
+	}
+	client.client = &http.Client{Transport: tr}
 	return &client, nil
 }

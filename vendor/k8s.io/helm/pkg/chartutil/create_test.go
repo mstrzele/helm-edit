@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -68,6 +69,14 @@ func TestCreate(t *testing.T) {
 
 	for _, f := range []string{NotesName, DeploymentName, ServiceName, HelpersName} {
 		if fi, err := os.Stat(filepath.Join(dir, TemplatesDir, f)); err != nil {
+			t.Errorf("Expected %s file: %s", f, err)
+		} else if fi.IsDir() {
+			t.Errorf("Expected %s to be a file.", f)
+		}
+	}
+
+	for _, f := range []string{TestConnectionName} {
+		if fi, err := os.Stat(filepath.Join(dir, TemplatesTestsDir, f)); err != nil {
 			t.Errorf("Expected %s file: %s", f, err)
 		} else if fi.IsDir() {
 			t.Errorf("Expected %s to be a file.", f)
@@ -124,5 +133,10 @@ func TestCreateFrom(t *testing.T) {
 		} else if fi.IsDir() {
 			t.Errorf("Expected %s to be a file.", f)
 		}
+	}
+
+	// Ensure we replace `<CHARTNAME>`
+	if strings.Contains(mychart.Values.Raw, "<CHARTNAME>") {
+		t.Errorf("Did not expect %s to be present in %s", "<CHARTNAME>", mychart.Values.Raw)
 	}
 }

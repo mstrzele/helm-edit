@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2016 The Kubernetes Authors All rights reserved.
+# Copyright The Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ fi
 
 : ${GCLOUD_SERVICE_KEY:?"GCLOUD_SERVICE_KEY environment variable is not set"}
 : ${PROJECT_NAME:?"PROJECT_NAME environment variable is not set"}
+: ${AZURE_STORAGE_CONNECTION_STRING:?"AZURE_STORAGE_CONNECTION_STRING environment variable is not set"}
+: ${AZURE_STORAGE_CONTAINER_NAME:?"AZURE_STORAGE_CONTAINER_NAME environment variable is not set"}
 
 VERSION=
 if [[ -n "${CIRCLE_TAG:-}" ]]; then
@@ -29,12 +31,13 @@ if [[ -n "${CIRCLE_TAG:-}" ]]; then
 elif [[ "${CIRCLE_BRANCH:-}" == "master" ]]; then
   VERSION="canary"
 else
-  exit 1
+  echo "Skipping deploy step; this is neither master or a tag"
+  exit
 fi
 
 echo "Install docker client"
-VER="17.03.0-ce"
-curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+VER="17.09.0-ce"
+curl -L -o /tmp/docker-$VER.tgz https://download.docker.com/linux/static/stable/x86_64/docker-$VER.tgz
 tar -xz -C /tmp -f /tmp/docker-$VER.tgz
 mv /tmp/docker/* /usr/bin
 
@@ -47,7 +50,15 @@ echo "Configuring gcloud authentication"
 echo "${GCLOUD_SERVICE_KEY}" | base64 --decode > "${HOME}/gcloud-service-key.json"
 ${HOME}/google-cloud-sdk/bin/gcloud auth activate-service-account --key-file "${HOME}/gcloud-service-key.json"
 ${HOME}/google-cloud-sdk/bin/gcloud config set project "${PROJECT_NAME}"
-docker login -e 1234@5678.com -u _json_key -p "$(cat ${HOME}/gcloud-service-key.json)" https://gcr.io
+docker login -u _json_key -p "$(cat ${HOME}/gcloud-service-key.json)" https://gcr.io
+
+echo "Installing Azure CLI"
+apt update
+apt install -y apt-transport-https
+echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ stretch main" | tee /etc/apt/sources.list.d/azure-cli.list
+curl -L https://packages.microsoft.com/keys/microsoft.asc | apt-key add
+apt update
+apt install -y azure-cli
 
 echo "Building the tiller image"
 make docker-build VERSION="${VERSION}"
@@ -61,3 +72,6 @@ make dist checksum VERSION="${VERSION}"
 
 echo "Pushing binaries to gs bucket"
 ${HOME}/google-cloud-sdk/bin/gsutil cp ./_dist/* "gs://${PROJECT_NAME}"
+
+echo "Pushing binaries to Azure"
+az storage blob upload-batch -s _dist/ -d "$AZURE_STORAGE_CONTAINER_NAME" --pattern 'helm-*' --connection-string "$AZURE_STORAGE_CONNECTION_STRING"

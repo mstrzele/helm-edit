@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,13 +24,19 @@ import (
 	"testing"
 )
 
-const badChartDir = "rules/testdata/badchartfile"
-const badValuesFileDir = "rules/testdata/badvaluesfile"
-const badYamlFileDir = "rules/testdata/albatross"
-const goodChartDir = "rules/testdata/goodone"
+var values = []byte{}
+
+const (
+	namespace        = "testNamespace"
+	strict           = false
+	badChartDir      = "rules/testdata/badchartfile"
+	badValuesFileDir = "rules/testdata/badvaluesfile"
+	badYamlFileDir   = "rules/testdata/albatross"
+	goodChartDir     = "rules/testdata/goodone"
+)
 
 func TestBadChart(t *testing.T) {
-	m := All(badChartDir).Messages
+	m := All(badChartDir, values, namespace, strict).Messages
 	if len(m) != 5 {
 		t.Errorf("Number of errors %v", len(m))
 		t.Errorf("All didn't fail with expected errors, got %#v", m)
@@ -66,7 +72,7 @@ func TestBadChart(t *testing.T) {
 }
 
 func TestInvalidYaml(t *testing.T) {
-	m := All(badYamlFileDir).Messages
+	m := All(badYamlFileDir, values, namespace, strict).Messages
 	if len(m) != 1 {
 		t.Fatalf("All didn't fail with expected errors, got %#v", m)
 	}
@@ -76,7 +82,7 @@ func TestInvalidYaml(t *testing.T) {
 }
 
 func TestBadValues(t *testing.T) {
-	m := All(badValuesFileDir).Messages
+	m := All(badValuesFileDir, values, namespace, strict).Messages
 	if len(m) != 1 {
 		t.Fatalf("All didn't fail with expected errors, got %#v", m)
 	}
@@ -86,7 +92,7 @@ func TestBadValues(t *testing.T) {
 }
 
 func TestGoodChart(t *testing.T) {
-	m := All(goodChartDir).Messages
+	m := All(goodChartDir, values, namespace, strict).Messages
 	if len(m) != 0 {
 		t.Errorf("All failed but shouldn't have: %#v", m)
 	}

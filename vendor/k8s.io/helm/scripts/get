@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Copyright 2016 The Kubernetes Authors All rights reserved.
+# Copyright The Helm Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@
 # the package manager for Go: https://github.com/Masterminds/glide.sh/blob/master/get
 
 PROJECT_NAME="helm"
+TILLER_NAME="tiller"
 
+: ${USE_SUDO:="true"}
 : ${HELM_INSTALL_DIR:="/usr/local/bin"}
 
 # initArch discovers the architecture for this system.
@@ -27,7 +29,7 @@ initArch() {
   case $ARCH in
     armv5*) ARCH="armv5";;
     armv6*) ARCH="armv6";;
-    armv7*) ARCH="armv7";;
+    armv7*) ARCH="arm";;
     aarch64) ARCH="arm64";;
     x86) ARCH="386";;
     x86_64) ARCH="amd64";;
@@ -49,21 +51,21 @@ initOS() {
 # runs the given command as root (detects if we are root already)
 runAsRoot() {
   local CMD="$*"
-  
-  if [ $EUID -ne 0 ]; then
+
+  if [ $EUID -ne 0 -a $USE_SUDO = "true" ]; then
     CMD="sudo $CMD"
   fi
-  
+
   $CMD
 }
 
 # verifySupported checks that the os/arch combination is supported for
 # binary builds.
 verifySupported() {
-  local supported="linux-amd64\ndarwin-amd64\nlinux-386"
+  local supported="darwin-386\ndarwin-amd64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nwindows-386\nwindows-amd64"
   if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
-    echo "No prebuild binary for ${OS}-${ARCH}."
-    echo "To build from source, go to https://github.com/kubernetes/helm"
+    echo "No prebuilt binary for ${OS}-${ARCH}."
+    echo "To build from source, go to https://github.com/helm/helm"
     exit 1
   fi
 
@@ -75,16 +77,16 @@ verifySupported() {
 
 # checkDesiredVersion checks if the desired version is available.
 checkDesiredVersion() {
-  # Use the GitHub releases webpage for the project to find the desired version for this project.
-  local release_url="https://github.com/kubernetes/helm/releases/${DESIRED_VERSION:-latest}"
-  if type "curl" > /dev/null; then
-    TAG=$(curl -SsL $release_url | awk '/\/tag\//' | cut -d '"' -f 2 | awk '{n=split($NF,a,"/");print a[n]}' | awk 'a !~ $0{print}; {a=$0}')
-  elif type "wget" > /dev/null; then
-    TAG=$(wget -q -O - $release_url | awk '/\/tag\//' | cut -d '"' -f 2 | awk '{n=split($NF,a,"/");print a[n]}' | awk 'a !~ $0{print}; {a=$0}')
-  fi
-  if [ "x$TAG" == "x" ]; then
-    echo "Cannot determine ${DESIRED_VERSION} tag."
-    exit 1
+  if [ "x$DESIRED_VERSION" == "x" ]; then
+    # Get tag from release URL
+    local latest_release_url="https://github.com/helm/helm/releases/latest"
+    if type "curl" > /dev/null; then
+      TAG=$(curl -Ls -o /dev/null -w %{url_effective} $latest_release_url | grep -oE "[^/]+$" )
+    elif type "wget" > /dev/null; then
+      TAG=$(wget $latest_release_url --server-response -O /dev/null 2>&1 | awk '/^  Location: /{DEST=$2} END{ print DEST}' | grep -oE "[^/]+$")
+    fi
+  else
+    TAG=$DESIRED_VERSION
   fi
 }
 
@@ -92,7 +94,7 @@ checkDesiredVersion() {
 # if it needs to be changed.
 checkHelmInstalledVersion() {
   if [[ -f "${HELM_INSTALL_DIR}/${PROJECT_NAME}" ]]; then
-    local version=$(helm version | grep '^Client' | cut -d'"' -f2)
+    local version=$(helm version -c | grep '^Client' | cut -d'"' -f2)
     if [[ "$version" == "$TAG" ]]; then
       echo "Helm ${version} is already ${DESIRED_VERSION:-latest}"
       return 0
@@ -109,10 +111,11 @@ checkHelmInstalledVersion() {
 # for that binary.
 downloadFile() {
   HELM_DIST="helm-$TAG-$OS-$ARCH.tar.gz"
-  DOWNLOAD_URL="https://kubernetes-helm.storage.googleapis.com/$HELM_DIST"
+  DOWNLOAD_URL="https://get.helm.sh/$HELM_DIST"
   CHECKSUM_URL="$DOWNLOAD_URL.sha256"
-  HELM_TMP_FILE="/tmp/$HELM_DIST"
-  HELM_SUM_FILE="/tmp/$HELM_DIST.sha256"
+  HELM_TMP_ROOT="$(mktemp -dt helm-installer-XXXXXX)"
+  HELM_TMP_FILE="$HELM_TMP_ROOT/$HELM_DIST"
+  HELM_SUM_FILE="$HELM_TMP_ROOT/$HELM_DIST.sha256"
   echo "Downloading $DOWNLOAD_URL"
   if type "curl" > /dev/null; then
     curl -SsL "$CHECKSUM_URL" -o "$HELM_SUM_FILE"
@@ -129,19 +132,27 @@ downloadFile() {
 # installFile verifies the SHA256 for the file, then unpacks and
 # installs it.
 installFile() {
-  HELM_TMP="/tmp/$PROJECT_NAME"
+  HELM_TMP="$HELM_TMP_ROOT/$PROJECT_NAME"
   local sum=$(openssl sha1 -sha256 ${HELM_TMP_FILE} | awk '{print $2}')
   local expected_sum=$(cat ${HELM_SUM_FILE})
   if [ "$sum" != "$expected_sum" ]; then
-    echo "SHA sum of $HELM_TMP does not match. Aborting."
+    echo "SHA sum of ${HELM_TMP_FILE} does not match. Aborting."
     exit 1
   fi
 
   mkdir -p "$HELM_TMP"
   tar xf "$HELM_TMP_FILE" -C "$HELM_TMP"
   HELM_TMP_BIN="$HELM_TMP/$OS-$ARCH/$PROJECT_NAME"
-  echo "Preparing to install into ${HELM_INSTALL_DIR}"
+  TILLER_TMP_BIN="$HELM_TMP/$OS-$ARCH/$TILLER_NAME"
+  echo "Preparing to install $PROJECT_NAME and $TILLER_NAME into ${HELM_INSTALL_DIR}"
   runAsRoot cp "$HELM_TMP_BIN" "$HELM_INSTALL_DIR"
+  echo "$PROJECT_NAME installed into $HELM_INSTALL_DIR/$PROJECT_NAME"
+  if [ -x "$TILLER_TMP_BIN" ]; then
+    runAsRoot cp "$TILLER_TMP_BIN" "$HELM_INSTALL_DIR"
+    echo "$TILLER_NAME installed into $HELM_INSTALL_DIR/$TILLER_NAME"
+  else
+    echo "info: $TILLER_NAME binary was not found in this release; skipping $TILLER_NAME installation"
+  fi
 }
 
 # fail_trap is executed if an error occurs.
@@ -154,15 +165,15 @@ fail_trap() {
     else
       echo "Failed to install $PROJECT_NAME"
     fi
-    echo -e "\tFor support, go to https://github.com/kubernetes/helm."
+    echo -e "\tFor support, go to https://github.com/helm/helm."
   fi
+  cleanup
   exit $result
 }
 
 # testVersion tests the installed client to make sure it is working.
 testVersion() {
   set +e
-  echo "$PROJECT_NAME installed into $HELM_INSTALL_DIR/$PROJECT_NAME"
   HELM="$(which $PROJECT_NAME)"
   if [ "$?" = "1" ]; then
     echo "$PROJECT_NAME not found. Is $HELM_INSTALL_DIR on your "'$PATH?'
@@ -178,6 +189,14 @@ help () {
   echo -e "\t[--help|-h ] ->> prints this help"
   echo -e "\t[--version|-v <desired_version>] . When not defined it defaults to latest"
   echo -e "\te.g. --version v2.4.0  or -v latest"
+  echo -e "\t[--no-sudo]  ->> install without sudo"
+}
+
+# cleanup temporary files to avoid https://github.com/helm/helm/issues/2977
+cleanup() {
+  if [[ -d "${HELM_TMP_ROOT:-}" ]]; then
+    rm -rf "$HELM_TMP_ROOT"
+  fi
 }
 
 # Execution
@@ -200,7 +219,10 @@ while [[ $# -gt 0 ]]; do
            exit 0
        fi
        ;;
-    '--help'|-h) 
+    '--no-sudo')
+       USE_SUDO="false"
+       ;;
+    '--help'|-h)
        help
        exit 0
        ;;
@@ -220,3 +242,4 @@ if ! checkHelmInstalledVersion; then
   installFile
 fi
 testVersion
+cleanup

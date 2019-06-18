@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ A chart can be represented on the file system in one of two ways:
 	- As a tarred gzipped file containing a directory that then contains a
 	Chart.yaml file.
 
-This package provides utilitites for working with those file formats.
+This package provides utilities for working with those file formats.
 
 The preferred way of loading a chart is using 'chartutil.Load`:
 
@@ -38,7 +38,7 @@ For accepting raw compressed tar file data from an io.Reader, the
 'chartutil.LoadArchive()' will read in the data, uncompress it, and unpack it
 into a Chart.
 
-When creating charts in memory, use the 'k8s.io/helm/pkg/proto/happy/chart'
+When creating charts in memory, use the 'k8s.io/helm/pkg/proto/hapi/chart'
 package directly.
 */
 package chartutil // import "k8s.io/helm/pkg/chartutil"

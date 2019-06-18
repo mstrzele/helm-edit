@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestDelete(t *testing.T) {
@@ -33,28 +34,40 @@ func TestDelete(t *testing.T) {
 			args:     []string{"aeneas"},
 			flags:    []string{},
 			expected: "", // Output of a delete is an empty string and exit 0.
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"})},
 		},
 		{
 			name:     "delete with timeout",
 			args:     []string{"aeneas"},
 			flags:    []string{"--timeout", "120"},
 			expected: "",
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"})},
 		},
 		{
 			name:     "delete without hooks",
 			args:     []string{"aeneas"},
 			flags:    []string{"--no-hooks"},
 			expected: "",
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"})},
 		},
 		{
 			name:     "purge",
 			args:     []string{"aeneas"},
 			flags:    []string{"--purge"},
 			expected: "",
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"})},
+		},
+		{
+			name:     "delete with description",
+			args:     []string{"aeneas"},
+			flags:    []string{"--description", "foo"},
+			expected: "",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"})},
 		},
 		{
 			name: "delete without release",

@@ -31,15 +31,16 @@ plugins do the "detail work" of performing a desired action.
 
 ## Installing a Plugin
 
-A Helm plugin management system is in the works. But in the short term, plugins
-are installed by copying the plugin directory into `$(helm home)/plugins`.
+Plugins are installed using the `$ helm plugin install <path|url>` command. You can pass in a path to a plugin on your local file system or a url of a remote VCS repo. The `helm plugin install` command clones or copies the plugin at the path/url given into `$ (helm home)/plugins`
 
 ```console
-$ cp -a myplugin/ $(helm home)/plugins/
+$ helm plugin install https://github.com/technosophos/helm-template
 ```
 
 If you have a plugin tar distribution, simply untar the plugin into the
 `$(helm home)/plugins` directory.
+
+You can also install tarball plugins directly from url by issuing `helm plugin install http://domain/path/to/plugin.tar.gz`
 
 ## Building Plugins
 
@@ -117,6 +118,32 @@ There are some strategies for working with plugin commands:
   Helm will use `usage` and `description` for `helm help` and `helm help myplugin`,
   but will not handle `helm myplugin --help`.
 
+## Downloader Plugins
+By default, Helm is able to fetch Charts using HTTP/S. As of Helm 2.4.0, plugins
+can have a special capability to download Charts from arbitrary sources.
+
+Plugins shall declare this special capability in the `plugin.yaml` file (top level):
+
+```
+downloaders:
+- command: "bin/mydownloader"
+  protocols:
+  - "myprotocol"
+  - "myprotocols"
+```
+
+If such plugin is installed, Helm can interact with the repository using the specified
+protocol scheme by invoking the `command`. The special repository shall be added
+similarly to the regular ones: `helm repo add favorite myprotocol://example.com/`
+The rules for the special repos are the same to the regular ones: Helm must be able
+to download the `index.yaml` file in order to discover and cache the list of
+available Charts.
+
+The defined command will be invoked with the following scheme:
+`command certFile keyFile caFile full-URL`. The SSL credentials are coming from the
+repo definition, stored in `$HELM_HOME/repository/repositories.yaml`. Downloader
+plugin is expected to dump the raw content to stdout and report errors on stderr.
+
 ## Environment Variables
 
 When Helm executes a plugin, it passes the outer environment to the plugin, and
@@ -156,7 +183,7 @@ If a plugin specifies `useTunnel: true`, Helm will do the following (in order):
 5. Close the tunnel
 
 The tunnel is removed as soon as the `command` returns. So, for example, a
-command cannot background a process and assume that that process will be able
+command cannot background a process and assume that process will be able
 to use the tunnel.
 
 ## A Note on Flag Parsing

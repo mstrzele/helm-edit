@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -102,6 +102,9 @@ func TestIgnore(t *testing.T) {
 		// "." should never get ignored. https://github.com/kubernetes/helm/issues/1776
 		{`.*`, ".", false},
 		{`.*`, "./", false},
+		{`.*`, ".joonix", true},
+		{`.*`, "helm.txt", false},
+		{`.*`, "", false},
 
 		// Directory tests
 		{`cargo/`, "cargo", true},

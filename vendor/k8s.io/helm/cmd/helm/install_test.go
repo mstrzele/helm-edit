@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-
 	"k8s.io/helm/pkg/helm"
 )
 
@@ -36,46 +35,52 @@ func TestInstall(t *testing.T) {
 			args:     []string{"testdata/testcharts/alpine"},
 			flags:    strings.Split("--name aeneas", " "),
 			expected: "aeneas",
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
 		},
 		// Install, no hooks
 		{
 			name:     "install without hooks",
 			args:     []string{"testdata/testcharts/alpine"},
 			flags:    strings.Split("--name aeneas --no-hooks", " "),
-			expected: "juno",
-			resp:     releaseMock(&releaseOptions{name: "juno"}),
+			expected: "aeneas",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
 		},
 		// Install, values from cli
 		{
 			name:     "install with values",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--set foo=bar", " "),
-			resp:     releaseMock(&releaseOptions{name: "virgil"}),
+			flags:    strings.Split("--name virgil --set foo=bar", " "),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
 			expected: "virgil",
 		},
 		// Install, values from cli via multiple --set
 		{
 			name:     "install with multiple values",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--set foo=bar", "--set bar=foo"),
-			resp:     releaseMock(&releaseOptions{name: "virgil"}),
+			flags:    strings.Split("--name virgil --set foo=bar --set bar=foo", " "),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
 			expected: "virgil",
 		},
-		// Install, values from yaml
+		{
+			name:     "install with multiple unordered list values",
+			args:     []string{"testdata/testcharts/alpine"},
+			flags:    strings.Split("--name virgil --set foo[1].bar=baz,foo[0].baz=bar", " "),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
+			expected: "virgil",
+		},
 		{
 			name:     "install with values",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("-f testdata/testcharts/alpine/extra_values.yaml", " "),
-			resp:     releaseMock(&releaseOptions{name: "virgil"}),
+			flags:    strings.Split("--name virgil -f testdata/testcharts/alpine/extra_values.yaml", " "),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
 			expected: "virgil",
 		},
 		// Install, values from multiple yaml
 		{
 			name:     "install with values",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("-f testdata/testcharts/alpine/extra_values.yaml -f testdata/testcharts/alpine/more_values.yaml", " "),
-			resp:     releaseMock(&releaseOptions{name: "virgil"}),
+			flags:    strings.Split("--name virgil -f testdata/testcharts/alpine/extra_values.yaml -f testdata/testcharts/alpine/more_values.yaml", " "),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil"}),
 			expected: "virgil",
 		},
 		// Install, no charts
@@ -90,31 +95,46 @@ func TestInstall(t *testing.T) {
 			args:     []string{"testdata/testcharts/alpine"},
 			flags:    strings.Split("--name aeneas --replace", " "),
 			expected: "aeneas",
-			resp:     releaseMock(&releaseOptions{name: "aeneas"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "aeneas"}),
 		},
 		// Install, with timeout
 		{
 			name:     "install with a timeout",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--timeout 120", " "),
+			flags:    strings.Split("--name foobar --timeout 120", " "),
 			expected: "foobar",
-			resp:     releaseMock(&releaseOptions{name: "foobar"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "foobar"}),
 		},
 		// Install, with wait
 		{
 			name:     "install with a wait",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    strings.Split("--wait", " "),
+			flags:    strings.Split("--name apollo --wait", " "),
 			expected: "apollo",
-			resp:     releaseMock(&releaseOptions{name: "apollo"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "apollo"}),
+		},
+		// Install, with atomic
+		{
+			name:     "install with a atomic",
+			args:     []string{"testdata/testcharts/alpine"},
+			flags:    strings.Split("--name apollo", " "),
+			expected: "apollo",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "apollo"}),
 		},
 		// Install, using the name-template
 		{
 			name:     "install with name-template",
 			args:     []string{"testdata/testcharts/alpine"},
-			flags:    []string{"--name-template", "{{upper \"foobar\"}}"},
-			expected: "FOOBAR",
-			resp:     releaseMock(&releaseOptions{name: "FOOBAR"}),
+			flags:    []string{"--name-template", "{{lower \"FOOBAR\"}}"},
+			expected: "foobar",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "foobar"}),
+		},
+		{
+			name:     "install with custom description",
+			args:     []string{"testdata/testcharts/alpine"},
+			flags:    []string{"--name", "virgil", "--description", "foobar"},
+			expected: "virgil",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "virgil", Description: "foobar"}),
 		},
 		// Install, perform chart verification along the way.
 		{
@@ -145,6 +165,31 @@ func TestInstall(t *testing.T) {
 			name: "install chart with bad requirements.yaml",
 			args: []string{"testdata/testcharts/chart-bad-requirements"},
 			err:  true,
+		},
+		// Install, using a bad release name
+		{
+			name:  "install chart with release name using capitals",
+			args:  []string{"testdata/testcharts/alpine"},
+			flags: []string{"--name", "FOO"},
+			err:   true,
+		},
+		{
+			name:  "install chart with release name using periods",
+			args:  []string{"testdata/testcharts/alpine"},
+			flags: []string{"--name", "foo.bar"},
+		},
+		{
+			name:  "install chart with release name using underscores",
+			args:  []string{"testdata/testcharts/alpine"},
+			flags: []string{"--name", "foo_bar"},
+			err:   true,
+		},
+		// Install, using a bad name-template
+		{
+			name:  "install with name-template",
+			args:  []string{"testdata/testcharts/alpine"},
+			flags: []string{"--name-template", "{{UPPER \"foobar\"}}"},
+			err:   true,
 		},
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,11 +15,10 @@ package driver
 
 import (
 	"encoding/base64"
-	"reflect"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/api/core/v1"
 
 	rspb "k8s.io/helm/pkg/proto/hapi/release"
 )
@@ -46,7 +45,7 @@ func TestSecretGet(t *testing.T) {
 		t.Fatalf("Failed to get release: %s", err)
 	}
 	// compare fetched release with original
-	if !reflect.DeepEqual(rel, got) {
+	if !shallowReleaseEqual(rel, got) {
 		t.Errorf("Expected {%q}, got {%q}", rel, got)
 	}
 }
@@ -69,7 +68,7 @@ func TestUNcompressedSecretGet(t *testing.T) {
 	}
 	secret.Data["release"] = []byte(base64.StdEncoding.EncodeToString(b))
 	var mock MockSecretsInterface
-	mock.objects = map[string]*api.Secret{key: secret}
+	mock.objects = map[string]*v1.Secret{key: secret}
 	secrets := NewSecrets(&mock)
 
 	// get release with key
@@ -78,7 +77,7 @@ func TestUNcompressedSecretGet(t *testing.T) {
 		t.Fatalf("Failed to get release: %s", err)
 	}
 	// compare fetched release with original
-	if !reflect.DeepEqual(rel, got) {
+	if !shallowReleaseEqual(rel, got) {
 		t.Errorf("Expected {%q}, got {%q}", rel, got)
 	}
 }
@@ -151,7 +150,7 @@ func TestSecretCreate(t *testing.T) {
 	}
 
 	// compare created release with original
-	if !reflect.DeepEqual(rel, got) {
+	if !shallowReleaseEqual(rel, got) {
 		t.Errorf("Expected {%q}, got {%q}", rel, got)
 	}
 }

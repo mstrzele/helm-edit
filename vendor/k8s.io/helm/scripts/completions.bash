@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # bash completion for helm                                 -*- shell-script -*-
 
 __debug()
@@ -830,6 +832,8 @@ _helm_install()
     local_nonpersistent_flags+=("--repo=")
     flags+=("--set=")
     local_nonpersistent_flags+=("--set=")
+    flags+=("--set-string=")
+    local_nonpersistent_flags+=("--set-string=")
     flags+=("--timeout=")
     local_nonpersistent_flags+=("--timeout=")
     flags+=("--tls")

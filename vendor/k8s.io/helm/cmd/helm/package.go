@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import (
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/provenance"
+	"k8s.io/helm/pkg/renderutil"
 	"k8s.io/helm/pkg/repo"
 )
 
@@ -56,6 +57,7 @@ type packageCmd struct {
 	key              string
 	keyring          string
 	version          string
+	appVersion       string
 	destination      string
 	dependencyUpdate bool
 
@@ -99,6 +101,7 @@ func newPackageCmd(out io.Writer) *cobra.Command {
 	f.StringVar(&pkg.key, "key", "", "name of the key to use when signing. Used if --sign is true")
 	f.StringVar(&pkg.keyring, "keyring", defaultKeyring(), "location of a public keyring")
 	f.StringVar(&pkg.version, "version", "", "set the version on the chart to this semver version")
+	f.StringVar(&pkg.appVersion, "app-version", "", "set the appVersion on the chart to this version")
 	f.StringVarP(&pkg.destination, "destination", "d", ".", "location to write the chart.")
 	f.BoolVarP(&pkg.dependencyUpdate, "dependency-update", "u", false, `update dependencies from "requirements.yaml" to dir "charts/" before packaging`)
 
@@ -139,12 +142,17 @@ func (p *packageCmd) run() error {
 		debug("Setting version to %s", p.version)
 	}
 
+	if p.appVersion != "" {
+		ch.Metadata.AppVersion = p.appVersion
+		debug("Setting appVersion to %s", p.appVersion)
+	}
+
 	if filepath.Base(path) != ch.Metadata.Name {
 		return fmt.Errorf("directory name (%s) and Chart.yaml name (%s) must match", filepath.Base(path), ch.Metadata.Name)
 	}
 
 	if reqs, err := chartutil.LoadRequirements(ch); err == nil {
-		if err := checkDependencies(ch, reqs); err != nil {
+		if err := renderutil.CheckDependencies(ch, reqs); err != nil {
 			return err
 		}
 	} else {
@@ -207,7 +215,7 @@ func (p *packageCmd) clearsign(filename string) error {
 		return err
 	}
 
-	if err := signer.DecryptKey(promptUser); err != nil {
+	if err := signer.DecryptKey(passphraseFetcher); err != nil {
 		return err
 	}
 
@@ -221,8 +229,13 @@ func (p *packageCmd) clearsign(filename string) error {
 	return ioutil.WriteFile(filename+".prov", []byte(sig), 0755)
 }
 
-// promptUser implements provenance.PassphraseFetcher
-func promptUser(name string) ([]byte, error) {
+// passphraseFetcher implements provenance.PassphraseFetcher
+func passphraseFetcher(name string) ([]byte, error) {
+	var passphrase = settings.HelmKeyPassphrase()
+	if passphrase != "" {
+		return []byte(passphrase), nil
+	}
+
 	fmt.Printf("Password for key %q >  ", name)
 	pw, err := terminal.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
