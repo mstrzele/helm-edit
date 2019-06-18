@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -27,7 +27,7 @@ import (
 const verifyDesc = `
 Verify that the given chart has a valid provenance file.
 
-Provenance files provide crytographic verification that a chart has not been
+Provenance files provide cryptographic verification that a chart has not been
 tampered with, and was packaged by a trusted provider.
 
 This command can be used to verify a local chart. Several other commands provide

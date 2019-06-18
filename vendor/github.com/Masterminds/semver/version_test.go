@@ -34,6 +34,9 @@ func TestNewVersion(t *testing.T) {
 		{"v1.2.3-rc1-with-hypen", false},
 		{"1.2.3.4", true},
 		{"v1.2.3.4", true},
+		{"1.2.2147483648", false},
+		{"1.2147483648.3", false},
+		{"2147483648.3.0", false},
 	}
 
 	for _, tc := range tests {
@@ -156,9 +159,9 @@ func TestCompare(t *testing.T) {
 		{"4.2-beta.2", "4.2-beta.1", 1},
 		{"4.2-beta2", "4.2-beta1", 1},
 		{"4.2-beta", "4.2-beta.2", -1},
-		{"4.2-beta", "4.2-beta.foo", 1},
+		{"4.2-beta", "4.2-beta.foo", -1},
 		{"4.2-beta.2", "4.2-beta", 1},
-		{"4.2-beta.foo", "4.2-beta", -1},
+		{"4.2-beta.foo", "4.2-beta", 1},
 		{"1.2+bar", "1.2+baz", 0},
 	}
 

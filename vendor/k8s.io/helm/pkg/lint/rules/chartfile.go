@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,7 +46,8 @@ func Chartfile(linter *support.Linter) {
 		return
 	}
 
-	linter.RunLinterRule(support.ErrorSev, chartFileName, validateChartName(chartFile))
+	linter.RunLinterRule(support.ErrorSev, chartFileName, validateChartNamePresence(chartFile))
+	linter.RunLinterRule(support.WarningSev, chartFileName, validateChartNameFormat(chartFile))
 	linter.RunLinterRule(support.ErrorSev, chartFileName, validateChartNameDirMatch(linter.ChartDir, chartFile))
 
 	// Chart metadata
@@ -74,9 +75,16 @@ func validateChartYamlFormat(chartFileError error) error {
 	return nil
 }
 
-func validateChartName(cf *chart.Metadata) error {
+func validateChartNamePresence(cf *chart.Metadata) error {
 	if cf.Name == "" {
 		return errors.New("name is required")
+	}
+	return nil
+}
+
+func validateChartNameFormat(cf *chart.Metadata) error {
+	if strings.Contains(cf.Name, ".") {
+		return errors.New("name should be lower case letters and numbers. Words may be separated with dashes")
 	}
 	return nil
 }
@@ -141,6 +149,8 @@ func validateChartMaintainer(cf *chart.Metadata) error {
 			return errors.New("each maintainer requires a name")
 		} else if maintainer.Email != "" && !govalidator.IsEmail(maintainer.Email) {
 			return fmt.Errorf("invalid email '%s' for maintainer '%s'", maintainer.Email, maintainer.Name)
+		} else if maintainer.Url != "" && !govalidator.IsURL(maintainer.Url) {
+			return fmt.Errorf("invalid url '%s' for maintainer '%s'", maintainer.Url, maintainer.Name)
 		}
 	}
 	return nil

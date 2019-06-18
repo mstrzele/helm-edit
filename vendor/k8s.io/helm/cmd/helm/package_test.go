@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -17,14 +17,17 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/helm/helmpath"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 )
@@ -51,6 +54,13 @@ func TestSetVersion(t *testing.T) {
 }
 
 func TestPackage(t *testing.T) {
+
+	statExe := "stat"
+	statFileMsg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		statExe = "FindFirstFile"
+		statFileMsg = "The system cannot find the file specified."
+	}
 
 	tests := []struct {
 		name    string
@@ -105,7 +115,7 @@ func TestPackage(t *testing.T) {
 			name:   "package --destination does-not-exist",
 			args:   []string{"testdata/testcharts/alpine"},
 			flags:  map[string]string{"destination": "does-not-exist"},
-			expect: "stat does-not-exist: no such file or directory",
+			expect: fmt.Sprintf("Failed to save: %s does-not-exist: %s", statExe, statFileMsg),
 			err:    true,
 		},
 		{
@@ -197,6 +207,50 @@ func TestPackage(t *testing.T) {
 				t.Errorf("%q: provenance file is empty", tt.name)
 			}
 		}
+	}
+}
+
+func TestSetAppVersion(t *testing.T) {
+	var ch *chart.Chart
+	expectedAppVersion := "app-version-foo"
+	tmp, _ := ioutil.TempDir("", "helm-package-app-version-")
+
+	thome, err := tempHelmHome(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanup := resetEnv()
+	defer func() {
+		os.RemoveAll(tmp)
+		os.RemoveAll(thome.String())
+		cleanup()
+	}()
+
+	settings.Home = helmpath.Home(thome)
+
+	c := newPackageCmd(&bytes.Buffer{})
+	flags := map[string]string{
+		"destination": tmp,
+		"app-version": expectedAppVersion,
+	}
+	setFlags(c, flags)
+	err = c.RunE(c, []string{"testdata/testcharts/alpine"})
+	if err != nil {
+		t.Errorf("unexpected error %q", err)
+	}
+
+	chartPath := filepath.Join(tmp, "alpine-0.1.0.tgz")
+	if fi, err := os.Stat(chartPath); err != nil {
+		t.Errorf("expected file %q, got err %q", chartPath, err)
+	} else if fi.Size() == 0 {
+		t.Errorf("file %q has zero bytes.", chartPath)
+	}
+	ch, err = chartutil.Load(chartPath)
+	if err != nil {
+		t.Errorf("unexpected error loading packaged chart: %v", err)
+	}
+	if ch.Metadata.AppVersion != expectedAppVersion {
+		t.Errorf("expected app-version %q, found %q", expectedAppVersion, ch.Metadata.AppVersion)
 	}
 }
 

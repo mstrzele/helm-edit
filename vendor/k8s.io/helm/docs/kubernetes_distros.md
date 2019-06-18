@@ -18,8 +18,9 @@ Hyperkube you may need to do some manual configuration.
 
 ## GKE
 
-Google's GKE hosted Kubernetes platform is known to work with Helm, and requires
-no additional configuration.
+Google's GKE hosted Kubernetes platform enables RBAC by default. You will need to create a service account for tiller, and use the --service-account flag when initializing the helm server.
+
+See [Tiller and role-based access control](https://docs.helm.sh/using_helm/#role-based-access-control) for more information.
 
 ## Ubuntu with 'kubeadm'
 
@@ -35,3 +36,16 @@ or create a `~/.kube/config`.
 ## Container Linux by CoreOS
 
 Helm requires that kubelet have access to a copy of the `socat` program to proxy connections to the Tiller API. On Container Linux the Kubelet runs inside of a [hyperkube](https://github.com/kubernetes/kubernetes/tree/master/cluster/images/hyperkube) container image that has socat. So, even though Container Linux doesn't ship `socat` the container filesystem running kubelet does have socat. To learn more read the [Kubelet Wrapper](https://coreos.com/kubernetes/docs/latest/kubelet-wrapper.html) docs.
+
+## Openshift
+
+Helm works straightforward on OpenShift Online, OpenShift Dedicated, OpenShift Container Platform (version >= 3.6) or OpenShift Origin (version >= 3.6). To learn more read [this blog](https://blog.openshift.com/getting-started-helm-openshift/) post.
+
+## Platform9
+
+Helm Client and Helm Server (Tiller) are pre-installed with [Platform9 Managed Kubernetes](https://platform9.com/managed-kubernetes/?utm_source=helm_distro_notes). Platform9 provides access to all official Helm charts through the App Catalog UI and native Kubernetes CLI. Additional repositories can be manually added. Further details are available in this [Platform9 App Catalog article](https://platform9.com/support/deploying-kubernetes-apps-platform9-managed-kubernetes/?utm_source=helm_distro_notes).
+
+## DC/OS
+
+Helm (both client and server) has been tested and is working on Mesospheres DC/OS 1.11 Kubernetes platform, and requires
+no additional configuration.

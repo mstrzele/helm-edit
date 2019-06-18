@@ -4,6 +4,8 @@ There are two parts to Helm: The Helm client (`helm`) and the Helm
 server (Tiller). This guide shows how to install the client, and then
 proceeds to show two ways to install the server.
 
+**IMPORTANT**: If you are responsible for ensuring your cluster is a controlled environment, especially when resources are shared, it is strongly recommended installing Tiller using a secured configuration. For guidance, see [Securing your Helm Installation](securing_installation.md).
+
 ## Installing the Helm Client
 
 The Helm client can be installed either from source, or from pre-built binary
@@ -11,16 +13,25 @@ releases.
 
 ### From the Binary Releases
 
-Every [release](https://github.com/kubernetes/helm/releases) of Helm
+Every [release](https://github.com/helm/helm/releases) of Helm
 provides binary releases for a variety of OSes. These binary versions
 can be manually downloaded and installed.
 
-1. Download your [desired version](https://github.com/kubernetes/helm/releases)
+1. Download your [desired version](https://github.com/helm/helm/releases)
 2. Unpack it (`tar -zxvf helm-v2.0.0-linux-amd64.tgz`)
 3. Find the `helm` binary in the unpacked directory, and move it to its
    desired destination (`mv linux-amd64/helm /usr/local/bin/helm`)
 
 From there, you should be able to run the client: `helm help`.
+
+### From Snap (Linux)
+
+The Snap package for Helm is maintained by
+[Snapcrafters](https://github.com/snapcrafters/helm).
+
+```
+$ sudo snap install helm --classic
+```
 
 ### From Homebrew (macOS)
 
@@ -34,21 +45,36 @@ brew install kubernetes-helm
 (Note: There is also a formula for emacs-helm, which is a different
 project.)
 
-## From Script
+### From Chocolatey or scoop (Windows)
+
+Members of the Kubernetes community have contributed a [Helm package](https://chocolatey.org/packages/kubernetes-helm) build to
+[Chocolatey](https://chocolatey.org/). This package is generally up to date.
+
+```
+choco install kubernetes-helm
+```
+
+The binary can also be installed via [`scoop`](https://scoop.sh) command-line installer.
+
+```
+scoop install helm
+```
+
+### From Script
 
 Helm now has an installer script that will automatically grab the latest version
-of the Helm client and [install it locally](https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get).
+of the Helm client and [install it locally](https://git.io/get_helm.sh).
 
 You can fetch that script, and then execute it locally. It's well documented so
 that you can read through it and understand what it is doing before you run it.
 
 ```
-$ curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
+$ curl -LO https://git.io/get_helm.sh
 $ chmod 700 get_helm.sh
 $ ./get_helm.sh
 ```
 
-Yes, you can `curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash` that if you want to live on the edge.
+Yes, you can `curl -L https://git.io/get_helm.sh | bash` that if you want to live on the edge.
 
 ### From Canary Builds
 
@@ -57,12 +83,12 @@ the latest master branch. They are not official releases, and may not be
 stable. However, they offer the opportunity to test the cutting edge
 features.
 
-Canary Helm binaries are stored in the [Kubernetes Helm GCS bucket](https://kubernetes-helm.storage.googleapis.com).
+Canary Helm binaries are stored at [get.helm.sh](https://get.helm.sh).
 Here are links to the common builds:
 
-- [Linux AMD64](https://kubernetes-helm.storage.googleapis.com/helm-canary-linux-amd64.tar.gz)
-- [macOS AMD64](https://kubernetes-helm.storage.googleapis.com/helm-canary-darwin-amd64.tar.gz)
-- [Experimental Windows AMD64](https://kubernetes-helm.storage.googleapis.com/helm-canary-windows-amd64.zip)
+- [Linux AMD64](https://get.helm.sh/helm-canary-linux-amd64.tar.gz)
+- [macOS AMD64](https://get.helm.sh/helm-canary-darwin-amd64.tar.gz)
+- [Experimental Windows AMD64](https://get.helm.sh/helm-canary-windows-amd64.zip)
 
 ### From Source (Linux, macOS)
 
@@ -70,13 +96,13 @@ Building Helm from source is slightly more work, but is the best way to
 go if you want to test the latest (pre-release) Helm version.
 
 You must have a working Go environment with
-[glide](https://github.com/Masterminds/glide) and Mercurial installed.
+[glide](https://github.com/Masterminds/glide) installed.
 
 ```console
 $ cd $GOPATH
 $ mkdir -p src/k8s.io
 $ cd src/k8s.io
-$ git clone https://github.com/kubernetes/helm.git
+$ git clone https://github.com/helm/helm.git
 $ cd helm
 $ make bootstrap build
 ```
@@ -92,6 +118,12 @@ Tiller is also compiled, and is placed in `bin/tiller`.
 Tiller, the server portion of Helm, typically runs inside of your
 Kubernetes cluster. But for development, it can also be run locally, and
 configured to talk to a remote Kubernetes cluster.
+
+### Special Note for RBAC Users
+
+Most cloud providers enable a feature called Role-Based Access Control - RBAC for short. If your cloud provider enables this feature, you will need to create a service account for Tiller with the right roles and permissions to access resources.
+
+Check the [Kubernetes Distribution Guide](kubernetes_distros.md) to see if there's any further points of interest on using Helm with your cloud provider. Also check out the guide on [Tiller and Role-Based Access Control](rbac.md) for more information on how to run Tiller in an RBAC-enabled Kubernetes cluster.
 
 ### Easy In-Cluster Installation
 
@@ -111,6 +143,8 @@ You can explicitly tell `helm init` to...
 - Install a particular image (version) with `--tiller-image`
 - Install to a particular cluster with `--kube-context`
 - Install into a particular namespace with `--tiller-namespace`
+- Install Tiller with a Service Account with `--service-account` (for [RBAC enabled clusters](securing_installation.md#rbac))
+- Install Tiller without mounting a service account with `--automount-service-account false`
 
 Once Tiller is installed, running `helm version` should show you both
 the client and server version. (If it shows only the client version,
@@ -317,6 +351,51 @@ in JSON format.
 ...
 ```
 
+### Storage backends
+By default, `tiller` stores release information in `ConfigMaps` in the namespace
+where it is running.
+
+#### Secret storage backend
+As of Helm 2.7.0, there is now a beta storage backend that
+uses `Secrets` for storing release information. This was added for additional
+security in protecting charts in conjunction with the release of `Secret`
+encryption in Kubernetes.
+
+To enable the secrets backend, you'll need to init Tiller with the following
+options:
+
+```shell
+helm init --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}'
+```
+
+Currently, if you want to switch from the default backend to the secrets
+backend, you'll have to do the migration for this on your own. When this backend
+graduates from beta, there will be a more official path of migration
+
+#### SQL storage backend
+As of Helm 2.14.0 there is now a beta SQL storage backend that stores release
+information in an SQL database (only postgres has been tested so far).
+
+Using such a storage backend is particularly useful if your release information
+weighs more than 1MB (in which case, it can't be stored in ConfigMaps/Secrets
+because of internal limits in Kubernetes' underlying etcd key-value store).
+
+To enable the SQL backend, you'll need to deploy a SQL database and init Tiller
+with the following options:
+
+```shell
+helm init \
+  --override \
+    'spec.template.spec.containers[0].args'='{--storage=sql,--sql-dialect=postgres,--sql-connection-string=postgresql://tiller-postgres:5432/helm?user=helm&password=changeme}'
+```
+
+**PRODUCTION NOTES**: it's recommended to change the username and password of
+the SQL database in production deployments. Enabling SSL is also a good idea.
+Last, but not least, perform regular backups/snapshots of your SQL database.
+
+Currently, if you want to switch from the default backend to the SQL backend,
+you'll have to do the migration for this on your own. When this backend
+graduates from beta, there will be a more official migration path.
 
 ## Conclusion
 

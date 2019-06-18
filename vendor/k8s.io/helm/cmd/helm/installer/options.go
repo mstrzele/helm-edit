@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,12 @@ import (
 	"k8s.io/helm/pkg/version"
 )
 
-const defaultImage = "gcr.io/kubernetes-helm/tiller"
+const (
+	defaultImage = "gcr.io/kubernetes-helm/tiller"
+
+	fmtJSON OutputFormat = "json"
+	fmtYAML OutputFormat = "yaml"
+)
 
 // Options control how to install Tiller into a cluster, upgrade, and uninstall Tiller from a cluster.
 type Options struct {
@@ -47,7 +52,13 @@ type Options struct {
 	// ServiceAccount is the Kubernetes service account to add to Tiller.
 	ServiceAccount string
 
-	// ImageSpec indentifies the image Tiller will use when deployed.
+	// AutoMountServiceAccountToken determines whether or not the service account should be added to Tiller.
+	AutoMountServiceAccountToken bool
+
+	// ForceUpgrade allows to force upgrading tiller if deployed version is greater than current version
+	ForceUpgrade bool
+
+	// ImageSpec identifies the image Tiller will use when deployed.
 	//
 	// Valid if and only if UseCanary is false.
 	ImageSpec string
@@ -78,6 +89,11 @@ type Options struct {
 	// Less than or equal to zero means no limit.
 	MaxHistory int
 
+	// Replicas sets the amount of Tiller replicas to start
+	//
+	// Less than or equals to 1 means 1.
+	Replicas int
+
 	// NodeSelectors determine which nodes Tiller can land on.
 	NodeSelectors string
 
@@ -88,11 +104,15 @@ type Options struct {
 	Values []string
 }
 
-func (opts *Options) selectImage() string {
+// SelectImage returns the image according to whether UseCanary is true or not
+func (opts *Options) SelectImage() string {
 	switch {
 	case opts.UseCanary:
 		return defaultImage + ":canary"
 	case opts.ImageSpec == "":
+		if version.BuildMetadata == "unreleased" {
+			return defaultImage + ":canary"
+		}
 		return fmt.Sprintf("%s:%s", defaultImage, version.Version)
 	default:
 		return opts.ImageSpec
@@ -104,6 +124,14 @@ func (opts *Options) pullPolicy() v1.PullPolicy {
 		return v1.PullAlways
 	}
 	return v1.PullIfNotPresent
+}
+
+func (opts *Options) getReplicas() *int32 {
+	replicas := int32(1)
+	if opts.Replicas > 1 {
+		replicas = int32(opts.Replicas)
+	}
+	return &replicas
 }
 
 func (opts *Options) tls() bool { return opts.EnableTLS || opts.VerifyTLS }
@@ -130,11 +158,6 @@ func (f *OutputFormat) String() string {
 func (f *OutputFormat) Type() string {
 	return "OutputFormat"
 }
-
-const (
-	fmtJSON OutputFormat = "json"
-	fmtYAML OutputFormat = "yaml"
-)
 
 // Set validates and sets the value of the OutputFormat
 func (f *OutputFormat) Set(s string) error {

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -33,11 +33,19 @@ type pluginInstallCmd struct {
 	out     io.Writer
 }
 
+const pluginInstallDesc = `
+This command allows you to install a plugin from a url to a VCS repo or a local path.
+
+Example usage:
+    $ helm plugin install https://github.com/technosophos/helm-template
+`
+
 func newPluginInstallCmd(out io.Writer) *cobra.Command {
 	pcmd := &pluginInstallCmd{out: out}
 	cmd := &cobra.Command{
 		Use:   "install [options] <path|url>...",
 		Short: "install one or more Helm plugins",
+		Long:  pluginInstallDesc,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return pcmd.complete(args)
 		},

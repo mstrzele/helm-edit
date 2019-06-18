@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -82,7 +82,22 @@ func (h Home) Plugins() string {
 	return h.Path("plugins")
 }
 
-// Archive returns the path to download chart archives
+// Archive returns the path to download chart archives.
 func (h Home) Archive() string {
 	return h.Path("cache", "archive")
+}
+
+// TLSCaCert returns the path to fetch the CA certificate.
+func (h Home) TLSCaCert() string {
+	return h.Path("ca.pem")
+}
+
+// TLSCert returns the path to fetch the client certificate.
+func (h Home) TLSCert() string {
+	return h.Path("cert.pem")
+}
+
+// TLSKey returns the path to fetch the client public key.
+func (h Home) TLSKey() string {
+	return h.Path("key.pem")
 }

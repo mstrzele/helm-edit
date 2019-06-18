@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,15 +23,24 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestGetCmd(t *testing.T) {
 	tests := []releaseCase{
 		{
 			name:     "get with a release",
-			resp:     releaseMock(&releaseOptions{name: "thomas-guide"}),
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "thomas-guide"}),
 			args:     []string{"thomas-guide"},
-			expected: "REVISION: 1\nRELEASED: (.*)\nCHART: foo-0.1.0-beta.1\nUSER-SUPPLIED VALUES:\nname: \"value\"\nCOMPUTED VALUES:\nname: value\n\nHOOKS:\n---\n# pre-install-hook\n" + mockHookTemplate + "\nMANIFEST:",
+			expected: "REVISION: 1\nRELEASED: (.*)\nCHART: foo-0.1.0-beta.1\nUSER-SUPPLIED VALUES:\nname: \"value\"\nCOMPUTED VALUES:\nname: value\n\nHOOKS:\n---\n# pre-install-hook\n" + helm.MockHookTemplate + "\nMANIFEST:",
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "thomas-guide"})},
+		},
+		{
+			name:     "get with a formatted release",
+			resp:     helm.ReleaseMock(&helm.MockReleaseOptions{Name: "elevated-turkey"}),
+			args:     []string{"elevated-turkey", "--template", "{{.Release.Chart.Metadata.Version}}"},
+			expected: "0.1.0-beta.1",
+			rels:     []*release.Release{helm.ReleaseMock(&helm.MockReleaseOptions{Name: "elevated-turkey"})},
 		},
 		{
 			name: "get requires release name arg",

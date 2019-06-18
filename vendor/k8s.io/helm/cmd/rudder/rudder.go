@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,39 +21,58 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/client-go/kubernetes"
 
 	"k8s.io/helm/pkg/kube"
 	rudderAPI "k8s.io/helm/pkg/proto/hapi/rudder"
-	"k8s.io/helm/pkg/rudder"
 	"k8s.io/helm/pkg/tiller"
 	"k8s.io/helm/pkg/version"
 )
 
 var kubeClient *kube.Client
-var clientset internalclientset.Interface
+var clientset kubernetes.Interface
+
+type options struct {
+	listen string
+}
+
+func (opts *options) registerFlags() {
+	pflag.StringVarP(&opts.listen, "listen", "l", "127.0.0.1:10001",
+		"Socket for rudder grpc server (default: 127.0.0.1:10001).")
+}
+
+func (opts *options) parseFlags() {
+	pflag.Parse()
+}
+
+func (opts *options) regAndParseFlags() {
+	opts.registerFlags()
+	opts.parseFlags()
+}
 
 func main() {
+	opts := new(options)
+	opts.regAndParseFlags()
 	var err error
 	kubeClient = kube.New(nil)
-	clientset, err = kubeClient.ClientSet()
+	clientset, err = kubeClient.KubernetesClientSet()
 	if err != nil {
 		grpclog.Fatalf("Cannot initialize Kubernetes connection: %s", err)
 	}
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", rudder.GrpcPort))
+	grpclog.Printf("Creating tcp socket on %s\n", opts.listen)
+	lis, err := net.Listen("tcp", opts.listen)
 	if err != nil {
 		grpclog.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	rudderAPI.RegisterReleaseModuleServiceServer(grpcServer, &ReleaseModuleServiceServer{})
 
-	grpclog.Print("Server starting")
+	grpclog.Printf("Starting server on %s\n", opts.listen)
 	grpcServer.Serve(lis)
-	grpclog.Print("Server started")
 }
 
 // ReleaseModuleServiceServer provides implementation for rudderAPI.ReleaseModuleServiceServer
@@ -112,7 +131,13 @@ func (r *ReleaseModuleServiceServer) RollbackRelease(ctx context.Context, in *ru
 	grpclog.Print("rollback")
 	c := bytes.NewBufferString(in.Current.Manifest)
 	t := bytes.NewBufferString(in.Target.Manifest)
-	err := kubeClient.Update(in.Target.Namespace, c, t, in.Force, in.Recreate, in.Timeout, in.Wait)
+	err := kubeClient.UpdateWithOptions(in.Target.Namespace, c, t, kube.UpdateOptions{
+		Force:         in.Force,
+		Recreate:      in.Recreate,
+		Timeout:       in.Timeout,
+		ShouldWait:    in.Wait,
+		CleanupOnFail: in.CleanupOnFail,
+	})
 	return &rudderAPI.RollbackReleaseResponse{}, err
 }
 
@@ -121,7 +146,13 @@ func (r *ReleaseModuleServiceServer) UpgradeRelease(ctx context.Context, in *rud
 	grpclog.Print("upgrade")
 	c := bytes.NewBufferString(in.Current.Manifest)
 	t := bytes.NewBufferString(in.Target.Manifest)
-	err := kubeClient.Update(in.Target.Namespace, c, t, in.Force, in.Recreate, in.Timeout, in.Wait)
+	err := kubeClient.UpdateWithOptions(in.Target.Namespace, c, t, kube.UpdateOptions{
+		Force:         in.Force,
+		Recreate:      in.Recreate,
+		Timeout:       in.Timeout,
+		ShouldWait:    in.Wait,
+		CleanupOnFail: in.CleanupOnFail,
+	})
 	// upgrade response object should be changed to include status
 	return &rudderAPI.UpgradeReleaseResponse{}, err
 }

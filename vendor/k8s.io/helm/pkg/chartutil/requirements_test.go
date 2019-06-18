@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,6 +15,8 @@ limitations under the License.
 package chartutil
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -417,6 +419,30 @@ func TestDependentChartWithSubChartsAbsentInRequirements(t *testing.T) {
 		t.Fatal("Expected no changes in dependencies to be, but did something got changed")
 	}
 
+}
+
+func TestDependentChartWithSubChartsHelmignore(t *testing.T) {
+	if _, err := Load("testdata/dependent-chart-helmignore"); err != nil {
+		t.Fatalf("Failed to load testdata: %s", err)
+	}
+}
+
+func TestDependentChartsWithSubChartsSymlink(t *testing.T) {
+	joonix := "testdata/joonix"
+	if err := os.Symlink(filepath.Join("..", "..", "frobnitz"), filepath.Join(joonix, "charts", "frobnitz")); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(filepath.Join(joonix, "charts", "frobnitz"))
+	c, err := Load(joonix)
+	if err != nil {
+		t.Fatalf("Failed to load testdata: %s", err)
+	}
+	if c.Metadata.Name != "joonix" {
+		t.Fatalf("Unexpected chart name: %s", c.Metadata.Name)
+	}
+	if n := len(c.Dependencies); n != 1 {
+		t.Fatalf("Expected 1 dependency for this chart, but got %d", n)
+	}
 }
 
 func TestDependentChartsWithSubchartsAllSpecifiedInRequirements(t *testing.T) {

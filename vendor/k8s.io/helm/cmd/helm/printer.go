@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ func printRelease(out io.Writer, rel *release.Release) error {
 	return tpl(printReleaseTemplate, data, out)
 }
 
-func tpl(t string, vals map[string]interface{}, out io.Writer) error {
+func tpl(t string, vals interface{}, out io.Writer) error {
 	tt, err := template.New("_").Parse(t)
 	if err != nil {
 		return err

@@ -27,7 +27,7 @@ The `values.yaml` file is also important to templates. This file contains the
 _default values_ for a chart. These values may be overridden by users during
 `helm install` or `helm upgrade`.
 
-The `Charts.yaml` file contains a description of the chart. You can access it
+The `Chart.yaml` file contains a description of the chart. You can access it
 from within a template. The `charts/` directory _may_ contain other charts (which
 we call _subcharts_). Later in this guide we will see how those work when it
 comes to template rendering.
@@ -51,8 +51,8 @@ already there.
 
 - `NOTES.txt`: The "help text" for your chart. This will be displayed to your users
   when they run `helm install`.
-- `deployment.yaml`: A basic manifest for creating a Kubernetes [deployment](http://kubernetes.io/docs/user-guide/deployments/)
-- `service.yaml`: A basic manifest for creating a [service endpoint](http://kubernetes.io/docs/user-guide/services/) for your deployment
+- `deployment.yaml`: A basic manifest for creating a Kubernetes [deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- `service.yaml`: A basic manifest for creating a [service endpoint](https://kubernetes.io/docs/concepts/services-networking/service/) for your deployment
 - `_helpers.tpl`: A place to put template helpers that you can re-use throughout the chart
 
 And what we're going to do is... _remove them all!_ That way we can work through our tutorial from scratch. We'll actually create our own `NOTES.txt` and `_helpers.tpl` as we go.

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -73,7 +73,7 @@ the dependency charts stored locally. The path should start with a prefix of
       repository: "file://../dependency_chart/nginx"
 
 If the dependency chart is retrieved locally, it is not required to have the
-repository added to helm by "helm add repo". Version matching is also supported
+repository added to helm by "helm repo add". Version matching is also supported
 for this case.
 `
 
@@ -141,7 +141,7 @@ func (l *dependencyListCmd) run() error {
 	r, err := chartutil.LoadRequirements(c)
 	if err != nil {
 		if err == chartutil.ErrRequirementsNotFound {
-			fmt.Fprintf(l.out, "WARNING: no requirements at %s/charts\n", l.chartpath)
+			fmt.Fprintf(l.out, "WARNING: no requirements at %s\n", filepath.Join(l.chartpath, "charts"))
 			return nil
 		}
 		return err

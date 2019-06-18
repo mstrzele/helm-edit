@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,14 +25,18 @@ import (
 	"k8s.io/helm/pkg/lint/support"
 )
 
-const templateTestBasedir = "./testdata/albatross"
+const (
+	strict              = false
+	namespace           = "testNamespace"
+	templateTestBasedir = "./testdata/albatross"
+)
 
 func TestValidateAllowedExtension(t *testing.T) {
-	var failTest = []string{"/foo", "/test.yml", "/test.toml", "test.yml"}
+	var failTest = []string{"/foo", "/test.toml"}
 	for _, test := range failTest {
 		err := validateAllowedExtension(test)
-		if err == nil || !strings.Contains(err.Error(), "Valid extensions are .yaml, .tpl, or .txt") {
-			t.Errorf("validateAllowedExtension('%s') to return \"Valid extensions are .yaml, .tpl, or .txt\", got no error", test)
+		if err == nil || !strings.Contains(err.Error(), "Valid extensions are .yaml, .yml, .tpl, or .txt") {
+			t.Errorf("validateAllowedExtension('%s') to return \"Valid extensions are .yaml, .yml, .tpl, or .txt\", got no error", test)
 		}
 	}
 	var successTest = []string{"/foo.yaml", "foo.yaml", "foo.tpl", "/foo/bar/baz.yaml", "NOTES.txt"}
@@ -44,9 +48,11 @@ func TestValidateAllowedExtension(t *testing.T) {
 	}
 }
 
+var values = []byte("nameOverride: ''\nhttpPort: 80")
+
 func TestTemplateParsing(t *testing.T) {
 	linter := support.Linter{ChartDir: templateTestBasedir}
-	Templates(&linter)
+	Templates(&linter, values, namespace, strict)
 	res := linter.Messages
 
 	if len(res) != 1 {
@@ -69,7 +75,7 @@ func TestTemplateIntegrationHappyPath(t *testing.T) {
 	defer os.Rename(ignoredTemplatePath, wrongTemplatePath)
 
 	linter := support.Linter{ChartDir: templateTestBasedir}
-	Templates(&linter)
+	Templates(&linter, values, namespace, strict)
 	res := linter.Messages
 
 	if len(res) != 0 {

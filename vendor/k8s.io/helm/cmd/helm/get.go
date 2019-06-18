@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,10 +41,11 @@ chart, the supplied values, and the generated manifest file.
 var errReleaseRequired = errors.New("release name is required")
 
 type getCmd struct {
-	release string
-	out     io.Writer
-	client  helm.Interface
-	version int32
+	release  string
+	out      io.Writer
+	client   helm.Interface
+	version  int32
+	template string
 }
 
 func newGetCmd(client helm.Interface, out io.Writer) *cobra.Command {
@@ -57,7 +58,7 @@ func newGetCmd(client helm.Interface, out io.Writer) *cobra.Command {
 		Use:     "get [flags] RELEASE_NAME",
 		Short:   "download a named release",
 		Long:    getHelp,
-		PreRunE: setupConnection,
+		PreRunE: func(_ *cobra.Command, _ []string) error { return setupConnection() },
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return errReleaseRequired
@@ -70,11 +71,18 @@ func newGetCmd(client helm.Interface, out io.Writer) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Int32Var(&get.version, "revision", 0, "get the named release with revision")
+	f := cmd.Flags()
+	settings.AddFlagsTLS(f)
+	f.Int32Var(&get.version, "revision", 0, "get the named release with revision")
+	f.StringVar(&get.template, "template", "", "go template for formatting the output, eg: {{.Release.Name}}")
 
-	cmd.AddCommand(addFlagsTLS(newGetValuesCmd(nil, out)))
-	cmd.AddCommand(addFlagsTLS(newGetManifestCmd(nil, out)))
-	cmd.AddCommand(addFlagsTLS(newGetHooksCmd(nil, out)))
+	cmd.AddCommand(newGetValuesCmd(nil, out))
+	cmd.AddCommand(newGetManifestCmd(nil, out))
+	cmd.AddCommand(newGetHooksCmd(nil, out))
+	cmd.AddCommand(newGetNotesCmd(nil, out))
+
+	// set defaults from environment
+	settings.InitTLS(f)
 
 	return cmd
 }
@@ -84,6 +92,10 @@ func (g *getCmd) run() error {
 	res, err := g.client.ReleaseContent(g.release, helm.ContentReleaseVersion(g.version))
 	if err != nil {
 		return prettyError(err)
+	}
+
+	if g.template != "" {
+		return tpl(g.template, res, g.out)
 	}
 	return printRelease(g.out, res.Release)
 }

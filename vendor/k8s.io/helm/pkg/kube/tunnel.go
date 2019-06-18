@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,7 +59,6 @@ func NewTunnel(client rest.Interface, config *rest.Config, namespace, podName st
 // Close disconnects a tunnel connection
 func (t *Tunnel) Close() {
 	close(t.stopChan)
-	close(t.readyChan)
 }
 
 // ForwardPort opens a tunnel to a kubernetes pod

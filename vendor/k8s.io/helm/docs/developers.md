@@ -5,13 +5,11 @@ Helm and Tiller.
 
 ## Prerequisites
 
-- Go 1.6.0 or later
-- Glide 0.12.0 or later
-- kubectl 1.2 or later
-- A Kubernetes cluster (optional)
+- The latest version of Go
+- The latest version of Glide
+- A Kubernetes cluster w/ kubectl (optional)
 - The gRPC toolchain
 - Git
-- Mercurial
 
 ## Building Helm/Tiller
 
@@ -28,12 +26,13 @@ packages.
 This will build both Helm and Tiller. `make bootstrap` will attempt to
 install certain tools if they are missing.
 
-To run all of the tests (without running the tests for `vendor/`), run
-`make test`.
+To run all the tests (without running the tests for `vendor/`), run
+`make test`. To run all tests in a containerized environment, run `make
+docker-test`.
 
 To run Helm and Tiller locally, you can run `bin/helm` or `bin/tiller`.
 
-- Helm and Tiller are known to run on macOS and most Linuxes, including
+- Helm and Tiller are known to run on macOS and most Linux distributions, including
   Alpine.
 - Tiller must have access to a Kubernetes cluster. It learns about the
   cluster by examining the Kube config files that `kubectl` uses.
@@ -88,7 +87,19 @@ GCR registry.
 For development, we highly recommend using the
 [Kubernetes Minikube](https://github.com/kubernetes/minikube)
 developer-oriented distribution. Once this is installed, you can use
-`helm init` to install into the cluster.
+`helm init` to install into the cluster. Note that version of tiller you're using for
+development may not be available in Google Cloud Container Registry. If you're getting
+image pull errors, you can override the version of Tiller. Example:
+
+```console
+helm init --tiller-image=gcr.io/kubernetes-helm/tiller:2.7.2
+```
+
+Or use the latest version:
+
+```console
+helm init --canary-image
+```
 
 For developing on Tiller, it is sometimes more expedient to run Tiller locally
 instead of packaging it into an image and running it in-cluster. You can do
@@ -121,7 +132,7 @@ elegant and high-quality open source code so that our users will benefit.
 
 Make sure you have read and understood the main CONTRIBUTING guide:
 
-https://github.com/kubernetes/helm/blob/master/CONTRIBUTING.md
+https://github.com/helm/helm/blob/master/CONTRIBUTING.md
 
 ### Structure of the Code
 
@@ -130,7 +141,7 @@ The code for the Helm project is organized as follows:
 - The individual programs are located in `cmd/`. Code inside of `cmd/`
   is not designed for library re-use.
 - Shared libraries are stored in `pkg/`.
-- The raw ProtoBuf files are stored in `_proto/hapi` (where `hapi` stands for 
+- The raw ProtoBuf files are stored in `_proto/hapi` (where `hapi` stands for
   the Helm Application Programming Interface).
 - The Go files generated from the `proto` definitions are stored in `pkg/proto`.
 - The `scripts/` directory contains a number of utility scripts. Most of these
@@ -150,16 +161,16 @@ home of the current development candidate. Releases are tagged.
 We accept changes to the code via GitHub Pull Requests (PRs). One
 workflow for doing this is as follows:
 
-1. Go to your `$GOPATH/k8s.io` directory and `git clone` the
-   `github.com/kubernetes/helm` repository.
+1. Go to your `$GOPATH/src/k8s.io` directory and `git clone` the
+   `github.com/helm/helm` repository.
 2. Fork that repository into your GitHub account
-3. Add your repository as a remote for `$GOPATH/k8s.io/helm`
+3. Add your repository as a remote for `$GOPATH/src/k8s.io/helm`
 4. Create a new working branch (`git checkout -b feat/my-feature`) and
    do your work on that branch.
-5. When you are ready for us to review, push your branch to GitHub, and
+5. When you are ready for us to review, sign your commit, push your branch to GitHub, and
    then open a new pull request with us.
 
-For Git commit messages, we follow the [Semantic Commit Messages](http://karma-runner.github.io/0.13/dev/git-commit-msg.html):
+For Git commit messages, we follow the [Semantic Commit Messages](https://karma-runner.github.io/0.13/dev/git-commit-msg.html):
 
 ```
 fix(helm): add --foo flag to 'helm install'
@@ -190,7 +201,7 @@ Common scopes:
 Read more:
 - The [Deis Guidelines](https://github.com/deis/workflow/blob/master/src/contributing/submitting-a-pull-request.md)
   were the inspiration for this section.
-- Karma Runner [defines](http://karma-runner.github.io/0.13/dev/git-commit-msg.html) the semantic commit message idea.
+- Karma Runner [defines](https://karma-runner.github.io/0.13/dev/git-commit-msg.html) the semantic commit message idea.
 
 ### Go Conventions
 
@@ -199,6 +210,9 @@ We follow the Go coding style standards very closely. Typically, running
 
 We also typically follow the conventions recommended by `go lint` and
 `gometalinter`. Run `make test-style` to test the style conformance.
+If you do not want to install all the linters from `gometalinter` into your
+global Go environment, you can run `make docker-test-style` which will
+run the same tests, but isolated within a docker container.
 
 Read more:
 

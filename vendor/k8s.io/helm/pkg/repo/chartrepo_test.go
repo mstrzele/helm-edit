@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -175,7 +175,7 @@ func verifyIndex(t *testing.T, actual *IndexFile) {
 				t.Errorf("Expected %q, got %q", e.Version, g.Version)
 			}
 			if len(g.Keywords) != 3 {
-				t.Error("Expected 3 keyrwords.")
+				t.Error("Expected 3 keywords.")
 			}
 			if len(g.Maintainers) != 2 {
 				t.Error("Expected 2 maintainers.")
@@ -275,5 +275,47 @@ func TestErrorFindChartInRepoURL(t *testing.T) {
 	}
 	if err != nil && err.Error() != `chart "chartWithNoURL" has no downloadable URLs` {
 		t.Errorf("Expected error for chart not found, but got a different error (%v)", err)
+	}
+}
+
+func TestResolveReferenceURL(t *testing.T) {
+	chartURL, err := ResolveReferenceURL("http://localhost:8123/charts/", "nginx-0.2.0.tgz")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if chartURL != "http://localhost:8123/charts/nginx-0.2.0.tgz" {
+		t.Errorf("%s", chartURL)
+	}
+
+	chartURL, err = ResolveReferenceURL("http://localhost:8123/charts", "nginx-0.2.0.tgz")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if chartURL != "http://localhost:8123/charts/nginx-0.2.0.tgz" {
+		t.Errorf("%s", chartURL)
+	}
+
+	chartURL, err = ResolveReferenceURL("http://localhost:8123/charts/?st=2018-08-06T22%3A59%3A04Z&se=2018-08-07T22%3A59%3A04Z&sp=rl&sv=2018-03-28&sr=c&sig=cyqM4%2F5G7HNk%2F3faaHSDMaWxFxefCglvZlYSnmQBwiY%3D", "nginx-0.2.0.tgz")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if chartURL != "http://localhost:8123/charts/nginx-0.2.0.tgz?st=2018-08-06T22%3A59%3A04Z&se=2018-08-07T22%3A59%3A04Z&sp=rl&sv=2018-03-28&sr=c&sig=cyqM4%2F5G7HNk%2F3faaHSDMaWxFxefCglvZlYSnmQBwiY%3D" {
+		t.Errorf("%s does not contain the query string of the base URL", chartURL)
+	}
+
+	chartURL, err = ResolveReferenceURL("http://localhost:8123", "https://kubernetes-charts.storage.googleapis.com/nginx-0.2.0.tgz")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if chartURL != "https://kubernetes-charts.storage.googleapis.com/nginx-0.2.0.tgz" {
+		t.Errorf("%s", chartURL)
+	}
+
+	chartURL, err = ResolveReferenceURL("http://localhost:8123/?querystring", "https://kubernetes-charts.storage.googleapis.com/nginx-0.2.0.tgz")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	if chartURL != "https://kubernetes-charts.storage.googleapis.com/nginx-0.2.0.tgz" {
+		t.Errorf("%s contains query string from base URL when it shouldn't", chartURL)
 	}
 }

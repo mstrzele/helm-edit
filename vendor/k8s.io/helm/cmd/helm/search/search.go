@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors All rights reserved.
+Copyright The Helm Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,12 @@ import (
 	"k8s.io/helm/pkg/repo"
 )
 
+const (
+	sep = "\v"
+	// verSep is a separator for version fields in map keys.
+	verSep = "$$"
+)
+
 // Result is a search result.
 //
 // Score indicates how close it is to match. The higher the score, the longer
@@ -49,15 +55,10 @@ type Index struct {
 	charts map[string]*repo.ChartVersion
 }
 
-const sep = "\v"
-
 // NewIndex creats a new Index.
 func NewIndex() *Index {
 	return &Index{lines: map[string]string{}, charts: map[string]*repo.ChartVersion{}}
 }
-
-// verSep is a separator for version fields in map keys.
-const verSep = "$$"
 
 // AddRepo adds a repository index to the search index.
 func (i *Index) AddRepo(rname string, ind *repo.IndexFile, all bool) {
@@ -146,11 +147,11 @@ func (i *Index) SearchLiteral(term string, threshold int) []*Result {
 	term = strings.ToLower(term)
 	buf := []*Result{}
 	for k, v := range i.lines {
-		k = strings.ToLower(k)
-		v = strings.ToLower(v)
-		res := strings.Index(v, term)
-		if score := i.calcScore(res, v); res != -1 && score < threshold {
-			parts := strings.Split(k, verSep) // Remove version, if it is there.
+		lk := strings.ToLower(k)
+		lv := strings.ToLower(v)
+		res := strings.Index(lv, term)
+		if score := i.calcScore(res, lv); res != -1 && score < threshold {
+			parts := strings.Split(lk, verSep) // Remove version, if it is there.
 			buf = append(buf, &Result{Name: parts[0], Score: score, Chart: i.charts[k]})
 		}
 	}
