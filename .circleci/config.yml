@@ -52,6 +52,7 @@ jobs:
     <<: *defaults
     steps:
       - run: GO111MODULE="on" go get sigs.k8s.io/kind@v0.3.0
+      - run: kind create cluster
 
   deploy:
     <<: *defaults
