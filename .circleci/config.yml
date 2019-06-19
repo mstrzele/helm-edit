@@ -52,7 +52,9 @@ jobs:
     docker:
       - image: docker:18.09
     steps:
+      - setup_remote_docker
       - run: docker info
+
       - run: wget -O /usr/local/bin/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64 && chmod +x /usr/local/bin/kind
       - run: kind create cluster --loglevel debug
 
