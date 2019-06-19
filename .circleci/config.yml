@@ -26,6 +26,7 @@ jobs:
       - run:
           name: Running gometalinter
           command: gometalinter --deadline=5m --errors
+
   build:
     <<: *defaults
     steps:
@@ -46,6 +47,11 @@ jobs:
           paths:
             - helm-edit_darwin_amd64
             - helm-edit_linux_amd64
+
+  test:
+    <<: *defaults
+    steps:
+      - run: GO111MODULE="on" go get sigs.k8s.io/kind@v0.3.0
 
   deploy:
     <<: *defaults
@@ -77,9 +83,15 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - deploy:
+      - test:
           requires:
             - build
+          filters:
+            tags:
+              only: /.*/
+      - deploy:
+          requires:
+            - test
           filters:
             tags:
               only: /^v.*/
