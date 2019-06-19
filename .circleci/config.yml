@@ -49,9 +49,10 @@ jobs:
             - helm-edit_linux_amd64
 
   test:
-    <<: *defaults
+    docker:
+      - image: docker:18.09
     steps:
-      - run: GO111MODULE="on" go get sigs.k8s.io/kind@v0.3.0
+      - run: wget -O /usr/local/bin/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64 && chmod +x /usr/local/bin/kind
       - run: kind create cluster
 
   deploy:
