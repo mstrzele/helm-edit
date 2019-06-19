@@ -2,7 +2,7 @@
 
 set -euf -o pipefail
 
-HELM_EDIT_VERSION=${HELM_EDIT_VERSION:-"0.2.0"}
+HELM_EDIT_VERSION=${HELM_EDIT_VERSION:-"0.3.0"}
 
 file="${HELM_PLUGIN_DIR:-"$(helm home)/plugins/helm-edit"}/helm-edit"
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
