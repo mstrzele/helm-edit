@@ -49,22 +49,20 @@ jobs:
             - helm-edit_linux_amd64
 
   test:
-    docker:
-      - image: docker:18.09
+    machine: true
     steps:
-      - setup_remote_docker
       - run: docker info
 
-      - run: wget -O /usr/local/bin/kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64 && chmod +x /usr/local/bin/kind
-      - run: kind create cluster --image kindest/node:v1.14.2
+      - run: wget -O kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64 && chmod +x kind
+      - run: ./kind create cluster --image kindest/node:v1.14.2
+      - run: echo 'export KUBECONFIG="$(./kind get kubeconfig-path)"' >> $BASH_ENV
 
-      - run: wget -O /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.2/bin/linux/amd64/kubectl && chmod +x /usr/local/bin/kubectl
-      - run: kubectl config view --kubeconfig "$(kind get kubeconfig-path)" -o jsonpath='{.clusters[?(@.name == "kind")].cluster.server}'
-      - run: kubectl version --kubeconfig "$(kind get kubeconfig-path)"
+      - run: wget -O kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.2/bin/linux/amd64/kubectl && chmod +x kubectl
+      - run: ./kubectl version
 
-      - run: wget https://get.helm.sh/helm-v2.14.1-linux-amd64.tar.gz && tar -xzf helm-v2.14.1-linux-amd64.tar.gz -C /usr/local/bin --strip-components 1 linux-amd64/helm
-      - run: helm init --kubeconfig "$(kind get kubeconfig-path)"
-      - run: helm version --kubeconfig "$(kind get kubeconfig-path)"
+      - run: wget https://get.helm.sh/helm-v2.14.1-linux-amd64.tar.gz && tar -xzf helm-v2.14.1-linux-amd64.tar.gz --strip-components 1 linux-amd64/helm
+      - run: ./helm init --wait
+      - run: ./helm version
 
   deploy:
     <<: *defaults
