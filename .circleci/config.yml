@@ -51,18 +51,20 @@ jobs:
   test:
     machine: true
     steps:
+      - run: echo "export PATH=\"$CIRCLE_WORKING_DIRECTORY:\$PATH\"" >> $BASH_ENV
+
       - run: docker info
 
       - run: wget -O kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64 && chmod +x kind
-      - run: ./kind create cluster --image kindest/node:v1.14.2
-      - run: echo 'export KUBECONFIG="$(./kind get kubeconfig-path)"' >> $BASH_ENV
+      - run: kind create cluster --image kindest/node:v1.14.2
+      - run: echo 'export KUBECONFIG="$(kind get kubeconfig-path)"' >> $BASH_ENV
 
       - run: wget -O kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.2/bin/linux/amd64/kubectl && chmod +x kubectl
-      - run: ./kubectl version
+      - run: kubectl version
 
       - run: wget https://get.helm.sh/helm-v2.14.1-linux-amd64.tar.gz && tar -xzf helm-v2.14.1-linux-amd64.tar.gz --strip-components 1 linux-amd64/helm
-      - run: ./helm init --wait
-      - run: ./helm version
+      - run: helm init --wait
+      - run: helm version
 
   deploy:
     <<: *defaults
