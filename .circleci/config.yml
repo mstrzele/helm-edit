@@ -81,7 +81,9 @@ jobs:
           cp dist/helm-edit_linux_amd64 $HOME/.helm/plugins/helm-edit/helm-edit
 
       - run:
-          command: helm upgrade foo ./foo -i
+          command: |
+            helm upgrade foo ./foo -i
+            diff -B <(helm get values -a foo) <(helm edit -a -e /bin/cat foo)
           working_directory: test
 
   deploy:
