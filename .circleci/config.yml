@@ -11,7 +11,6 @@ jobs:
     steps:
       - checkout
       - run: dep ensure
-
       - persist_to_workspace:
           root: vendor
           paths:
@@ -34,14 +33,11 @@ jobs:
           name: Installing Gox
           command: go get github.com/mitchellh/gox
       - checkout
-
       - attach_workspace:
           at: vendor
-
       - run: >
           gox -osarch "darwin/amd64 linux/amd64"
           -output "dist/{{.Dir}}_{{.OS}}_{{.Arch}}"
-
       - persist_to_workspace:
           root: dist
           paths:
@@ -61,28 +57,24 @@ jobs:
       - run: |
           wget -O kind https://github.com/kubernetes-sigs/kind/releases/download/v0.3.0/kind-linux-amd64
           chmod +x kind
-
       - run: kind create cluster --image kindest/node:v1.14.2
-
       - run: |
           echo 'export KUBECONFIG="$(kind get kubeconfig-path)"' >> $BASH_ENV
-
       - run: |
           wget -O kubectl https://storage.googleapis.com/kubernetes-release/release/v1.14.2/bin/linux/amd64/kubectl
           chmod +x kubectl
-
       - run: kubectl version
 
       - run: |
           wget https://get.helm.sh/helm-v2.14.1-linux-amd64.tar.gz
           tar -xzf helm-v2.14.1-linux-amd64.tar.gz --strip-components 1 linux-amd64/helm
-
-      - run: helm init --wait
+      - run: |
+          kubectl apply -f test/rbac-config.yaml
+          helm init --service-account tiller --wait
       - run: helm version
 
       - attach_workspace:
           at: dist
-
       - run: |
           mkdir $HOME/.helm/plugins/helm-edit
           cp plugin.yaml $HOME/.helm/plugins/helm-edit/
@@ -98,12 +90,9 @@ jobs:
       - run:
           name: Installing ghr
           command: go get -u github.com/tcnksm/ghr
-
       - checkout
-
       - attach_workspace:
           at: dist
-
       - deploy:
           command: >
             ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME
