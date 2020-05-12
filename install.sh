@@ -6,7 +6,7 @@ HELM_EDIT_VERSION=${HELM_EDIT_VERSION:-"0.4.0"}
 
 file="${HELM_PLUGIN_DIR:-"$(helm home)/plugins/helm-edit"}/helm-edit"
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
-url="https://github.com/nirroz93/helm-edit/releases/download/v${HELM_EDIT_VERSION}/helm-edit_${os}_amd64"
+url="https://github.com/mstrzele/helm-edit/releases/download/v${HELM_EDIT_VERSION}/helm-edit_${os}_amd64"
 
 if command -v wget; then
   wget -O "${file}"  "${url}"

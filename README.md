@@ -10,7 +10,7 @@ This plugin adds `helm edit` command. It opens the editor defined by `HELM_EDITO
 ## Install
 
 ```bash
-$ helm plugin install https://github.com/nirroz93/helm-edit.git
+$ helm plugin install https://github.com/mstrzele/helm-edit
 ```
 
 ## Usage

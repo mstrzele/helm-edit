@@ -1,6 +1,6 @@
 ---
 defaults: &defaults
-  working_directory: /go/src/github.com/nirroz93/helm-edit
+  working_directory: /go/src/github.com/mstrzele/helm-edit
   docker:
     - image: circleci/golang:1.14
 
