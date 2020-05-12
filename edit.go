@@ -145,8 +145,6 @@ func (e *editCmd) run() error {
 	if err != nil {
 		return err
 	}
-	// TODO: Fix bug unneccessary upgrade when values is {'a':{'b':Nil}} res.Config will be {'a':{}} and comparison will show changed
-	// 	if !reflect.DeepEqual(userSuppliedVal, res.Config) {
 	if string(vals) != newValuesString {
 		upgrade := action.NewUpgrade(e.cfg)
 		upgrade.Wait = e.wait
