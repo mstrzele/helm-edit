@@ -111,7 +111,10 @@ func (e *editCmd) run() error {
 		return err
 	}
 	vals, _ := yaml.Marshal(valsMap)
-	tmpfile.Write(vals)
+	_, err =tmpfile.Write(vals)
+	if err != nil {
+		return err
+	}
 
 	if err := tmpfile.Close(); err != nil {
 		return err
