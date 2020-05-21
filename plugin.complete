@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+$HELM_BIN list -a -q -m 0
+echo ":4"

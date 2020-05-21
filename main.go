@@ -1,33 +1,21 @@
 package main
 
 import (
+	"log"
 	"os"
 
-	"github.com/spf13/cobra"
-	"k8s.io/helm/pkg/helm"
-	helm_env "k8s.io/helm/pkg/helm/environment"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/cli"
 )
-
-var (
-	settings helm_env.EnvSettings
-)
-
-func setupConnection(c *cobra.Command, args []string) error {
-	settings.TillerHost = os.Getenv("TILLER_HOST")
-
-	return nil
-}
-
-func ensureHelmClient(h helm.Interface) helm.Interface {
-	if h != nil {
-		return h
-	}
-
-	return helm.NewClient(helm.Host(settings.TillerHost))
-}
 
 func main() {
-	cmd := newEditCmd(nil, os.Stdout)
+	settings := cli.New()
+	actionConfig := new(action.Configuration)
+	err := actionConfig.Init(settings.RESTClientGetter(), settings.Namespace(), os.Getenv("HELM_DRIVER"), log.Printf)
+	if err != nil {
+		return
+	}
+	cmd := newEditCmd(actionConfig, os.Stdout)
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
