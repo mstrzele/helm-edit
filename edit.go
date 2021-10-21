@@ -40,7 +40,7 @@ func newEditCmd(cfg *action.Configuration, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "edit [flags] RELEASE",
-		Short: fmt.Sprintf("edit a release"),
+		Short: "edit a release",
 		Long:  editHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			edit.cfg = cfg
