@@ -1,16 +1,18 @@
 # Helm Edit
 
 [![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-[![CircleCI](https://img.shields.io/circleci/project/github/mstrzele/helm-edit.svg?style=flat-square)](https://circleci.com/gh/mstrzele/helm-edit)
+[![Go](https://github.com/mstrzele/helm-edit/actions/workflows/go.yml/badge.svg)](https://github.com/mstrzele/helm-edit/actions/workflows/go.yml)
 
 > Edit a Helm release
 
-This plugin adds `helm edit` command. It opens the editor defined by `HELM_EDITOR`, `KUBE_EDITOR` or `EDITOR` environment variable and allows to edit the values and upgrade a release.
+This plugin adds `helm edit` command. It opens the editor defined by
+`HELM_EDITOR`, `KUBE_EDITOR` or `EDITOR` environment variable and allows to edit
+the values and upgrade a release.
 
 ## Install
 
 ```bash
-$ helm plugin install https://github.com/mstrzele/helm-edit
+helm plugin install https://github.com/mstrzele/helm-edit
 ```
 
 ## Usage
@@ -30,7 +32,8 @@ $ helm edit smiling-penguin
 
 PRs accepted.
 
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+Small note: If editing the README, please conform to the
+[standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
 ## License
 
